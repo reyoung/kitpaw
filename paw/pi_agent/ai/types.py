@@ -2,14 +2,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from time import time
-from typing import Any, Callable, Literal, TypeAlias, TypedDict
+from typing import Any, Awaitable, Callable, Literal, TypeAlias
 
 Api: TypeAlias = str
 Provider: TypeAlias = str
 ThinkingLevel: TypeAlias = Literal["minimal", "low", "medium", "high", "xhigh"]
 StopReason: TypeAlias = Literal["stop", "length", "toolUse", "error", "aborted"]
 ToolChoice: TypeAlias = Literal["auto", "none", "required"] | dict[str, Any]
-PayloadTransform: TypeAlias = Callable[[dict[str, Any], "Model"], dict[str, Any] | None]
+PayloadOverride: TypeAlias = dict[str, Any] | None | Awaitable[dict[str, Any] | None]
+PayloadTransform: TypeAlias = Callable[[dict[str, Any], "Model"], PayloadOverride]
 
 
 def now_ms() -> int:
@@ -69,7 +70,6 @@ class ToolCall:
 UserContentBlock: TypeAlias = TextContent | ImageContent
 AssistantContentBlock: TypeAlias = TextContent | ThinkingContent | ToolCall
 ToolResultContentBlock: TypeAlias = TextContent | ImageContent
-MessageContentBlock: TypeAlias = UserContentBlock | AssistantContentBlock
 
 
 @dataclass(slots=True)
@@ -118,12 +118,6 @@ class Context:
     messages: list[Message]
     system_prompt: str | None = None
     tools: list[Tool] | None = None
-
-
-@dataclass(slots=True)
-class OpenRouterRouting:
-    only: list[str] | None = None
-    order: list[str] | None = None
 
 
 @dataclass(slots=True)
@@ -185,81 +179,93 @@ class OpenAICompletionsOptions(StreamOptions):
     reasoning_effort: ThinkingLevel | None = None
 
 
-class StartEvent(TypedDict):
-    type: Literal["start"]
+@dataclass(slots=True)
+class StartEvent:
     partial: AssistantMessage
+    type: Literal["start"] = "start"
 
 
-class TextStartEvent(TypedDict):
-    type: Literal["text_start"]
+@dataclass(slots=True)
+class TextStartEvent:
     content_index: int
     partial: AssistantMessage
+    type: Literal["text_start"] = "text_start"
 
 
-class TextDeltaEvent(TypedDict):
-    type: Literal["text_delta"]
+@dataclass(slots=True)
+class TextDeltaEvent:
     content_index: int
     delta: str
     partial: AssistantMessage
+    type: Literal["text_delta"] = "text_delta"
 
 
-class TextEndEvent(TypedDict):
-    type: Literal["text_end"]
+@dataclass(slots=True)
+class TextEndEvent:
     content_index: int
     content: str
     partial: AssistantMessage
+    type: Literal["text_end"] = "text_end"
 
 
-class ThinkingStartEvent(TypedDict):
-    type: Literal["thinking_start"]
+@dataclass(slots=True)
+class ThinkingStartEvent:
     content_index: int
     partial: AssistantMessage
+    type: Literal["thinking_start"] = "thinking_start"
 
 
-class ThinkingDeltaEvent(TypedDict):
-    type: Literal["thinking_delta"]
+@dataclass(slots=True)
+class ThinkingDeltaEvent:
     content_index: int
     delta: str
     partial: AssistantMessage
+    type: Literal["thinking_delta"] = "thinking_delta"
 
 
-class ThinkingEndEvent(TypedDict):
-    type: Literal["thinking_end"]
+@dataclass(slots=True)
+class ThinkingEndEvent:
     content_index: int
     content: str
     partial: AssistantMessage
+    type: Literal["thinking_end"] = "thinking_end"
 
 
-class ToolCallStartEvent(TypedDict):
-    type: Literal["toolcall_start"]
+@dataclass(slots=True)
+class ToolCallStartEvent:
     content_index: int
     partial: AssistantMessage
+    type: Literal["toolcall_start"] = "toolcall_start"
 
 
-class ToolCallDeltaEvent(TypedDict):
-    type: Literal["toolcall_delta"]
+@dataclass(slots=True)
+class ToolCallDeltaEvent:
     content_index: int
     delta: str
     partial: AssistantMessage
+    type: Literal["toolcall_delta"] = "toolcall_delta"
 
 
-class ToolCallEndEvent(TypedDict):
-    type: Literal["toolcall_end"]
+@dataclass(slots=True)
+class ToolCallEndEvent:
     content_index: int
     tool_call: ToolCall
     partial: AssistantMessage
+    type: Literal["toolcall_end"] = "toolcall_end"
 
 
-class DoneEvent(TypedDict):
-    type: Literal["done"]
+@dataclass(slots=True)
+class DoneEvent:
     reason: Literal["stop", "length", "toolUse"]
     message: AssistantMessage
+    type: Literal["done"] = "done"
 
 
-class ErrorEvent(TypedDict):
-    type: Literal["error"]
+@dataclass(slots=True)
+class ErrorEvent:
     reason: Literal["error", "aborted"]
     error: AssistantMessage
+    type: Literal["error"] = "error"
 
 
 AssistantMessageEvent: TypeAlias = (

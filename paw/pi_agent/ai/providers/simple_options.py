@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from ..types import Model, OpenAICompletionsOptions, SimpleStreamOptions, StreamOptions, ThinkingLevel
+from ..types import Model, SimpleStreamOptions, StreamOptions, ThinkingLevel
 
 
 def build_base_options(model: Model, options: SimpleStreamOptions | None = None, api_key: str | None = None) -> StreamOptions:

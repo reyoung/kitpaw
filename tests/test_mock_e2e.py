@@ -6,7 +6,18 @@ from contextlib import contextmanager
 from dataclasses import replace
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from paw.pi_agent.ai import Context, TextContent, Tool, UserMessage, complete, get_model, stream_simple
+import pytest
+
+from paw.pi_agent.ai import (
+    Context,
+    TextContent,
+    Tool,
+    ToolCallEndEvent,
+    UserMessage,
+    acomplete,
+    astream_simple,
+    get_model,
+)
 
 
 def make_chunk(*, delta: dict, finish_reason: str | None = None, usage: dict | None = None) -> dict:
@@ -68,7 +79,8 @@ def run_mock_openai_server(chunks: list[dict]):
         thread.join(timeout=2)
 
 
-def test_complete_mock_e2e_text_response() -> None:
+@pytest.mark.anyio
+async def test_acomplete_mock_e2e_text_response() -> None:
     usage = {
         "prompt_tokens": 11,
         "completion_tokens": 7,
@@ -82,7 +94,7 @@ def test_complete_mock_e2e_text_response() -> None:
         ]
     ) as (base_url, state):
         model = replace(get_model("openai", "gpt-4o-mini"), base_url=base_url)
-        result = complete(
+        result = await acomplete(
             model,
             Context(messages=[UserMessage(content="Say hello")]),
             {"api_key": "test-key", "max_tokens": 32},
@@ -99,7 +111,8 @@ def test_complete_mock_e2e_text_response() -> None:
     assert result.usage.total_tokens == 21
 
 
-def test_stream_simple_mock_e2e_reasoning_and_tool_call() -> None:
+@pytest.mark.anyio
+async def test_astream_simple_mock_e2e_reasoning_and_tool_call() -> None:
     usage = {
         "prompt_tokens": 12,
         "completion_tokens": 6,
@@ -139,7 +152,7 @@ def test_stream_simple_mock_e2e_reasoning_and_tool_call() -> None:
 
     with run_mock_openai_server(chunks) as (base_url, state):
         model = replace(get_model("openai", "gpt-4o-mini"), base_url=base_url)
-        stream = stream_simple(
+        stream = astream_simple(
             model,
             Context(
                 messages=[UserMessage(content="Look up Beijing")],
@@ -157,14 +170,14 @@ def test_stream_simple_mock_e2e_reasoning_and_tool_call() -> None:
             ),
             {"api_key": "test-key", "reasoning": "medium"},
         )
-        events = list(stream)
-        result = stream.result()
+        events = [event async for event in stream]
+        result = await stream.result()
 
     request = state["request"]
     assert isinstance(request, dict)
     assert request["reasoning_effort"] == "medium"
     assert request["tools"][0]["function"]["strict"] is False
-    assert [event["type"] for event in events] == [
+    assert [event.type for event in events] == [
         "start",
         "thinking_start",
         "thinking_delta",
@@ -180,3 +193,4 @@ def test_stream_simple_mock_e2e_reasoning_and_tool_call() -> None:
     assert len(tool_calls) == 1
     assert tool_calls[0].arguments == {"city": "Beijing"}
     assert tool_calls[0].thought_signature is not None
+    assert isinstance(events[-2], ToolCallEndEvent)

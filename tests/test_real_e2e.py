@@ -4,13 +4,14 @@ import os
 
 import pytest
 
-from paw.pi_agent.ai import Context, TextContent, UserMessage, complete, get_model
+from paw.pi_agent.ai import Context, TextContent, UserMessage, acomplete, get_model
 from paw.pi_agent.ai.local_env import load_local_env
 
 pytestmark = [pytest.mark.e2e, pytest.mark.real_e2e]
 
 
-def test_real_openai_compatible_smoke() -> None:
+@pytest.mark.anyio
+async def test_real_openai_compatible_smoke() -> None:
     load_local_env()
     if os.getenv("PAW_RUN_REAL_E2E") != "1":
         pytest.skip("Set PAW_RUN_REAL_E2E=1 to run the real upstream smoke test.")
@@ -29,7 +30,7 @@ def test_real_openai_compatible_smoke() -> None:
 
     errors: list[str] = []
     for model_name in models:
-        result = complete(
+        result = await acomplete(
             get_model("openai", model_name),
             Context(messages=[UserMessage(content="Reply with exactly the word pong.")]),
             {"api_key": api_key, "max_tokens": 256},

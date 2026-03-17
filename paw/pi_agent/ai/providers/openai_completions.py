@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import inspect
 import json
 from copy import deepcopy
 from dataclasses import asdict, is_dataclass
 from typing import Any, Mapping
 
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 from ..env_api_keys import get_env_api_key
 from ..event_stream import AssistantMessageEventStream
@@ -13,16 +14,28 @@ from ..models import calculate_cost, supports_xhigh
 from ..types import (
     AssistantMessage,
     Context,
+    DoneEvent,
+    ErrorEvent,
     Model,
     OpenAICompletionsCompat,
     OpenAICompletionsOptions,
     SimpleStreamOptions,
+    StartEvent,
     StopReason,
     StreamOptions,
     TextContent,
+    TextDeltaEvent,
+    TextEndEvent,
+    TextStartEvent,
     ThinkingContent,
+    ThinkingDeltaEvent,
+    ThinkingEndEvent,
+    ThinkingStartEvent,
     Tool,
     ToolCall,
+    ToolCallDeltaEvent,
+    ToolCallEndEvent,
+    ToolCallStartEvent,
     ToolResultMessage,
     Usage,
     now_ms,
@@ -31,7 +44,9 @@ from .simple_options import build_base_options, clamp_reasoning
 from .transform_messages import transform_messages
 
 
-def normalize_options(options: OpenAICompletionsOptions | StreamOptions | Mapping[str, Any] | None) -> OpenAICompletionsOptions:
+def normalize_options(
+    options: OpenAICompletionsOptions | StreamOptions | Mapping[str, Any] | None,
+) -> OpenAICompletionsOptions:
     if options is None:
         return OpenAICompletionsOptions()
     if isinstance(options, OpenAICompletionsOptions):
@@ -64,14 +79,14 @@ def has_tool_history(messages: list[Any]) -> bool:
     return False
 
 
-def stream_openai_completions(
+def astream_openai_completions(
     model: Model,
     context: Context,
     options: OpenAICompletionsOptions | StreamOptions | Mapping[str, Any] | None = None,
 ) -> AssistantMessageEventStream:
     normalized = normalize_options(options)
 
-    def producer():
+    async def producer():
         output = AssistantMessage(
             api=model.api,
             provider=model.provider,
@@ -84,39 +99,20 @@ def stream_openai_completions(
         def block_index() -> int:
             return len(output.content) - 1
 
-        def finish_current_block():
+        def finish_current_block() -> list[Any]:
             nonlocal current_block, current_tool_partial_args
             if current_block is None:
                 return []
+
             index = block_index()
             if current_block.type == "text":
-                events = [
-                    {
-                        "type": "text_end",
-                        "content_index": index,
-                        "content": current_block.text,
-                        "partial": output,
-                    }
-                ]
+                events = [TextEndEvent(content_index=index, content=current_block.text, partial=output)]
             elif current_block.type == "thinking":
-                events = [
-                    {
-                        "type": "thinking_end",
-                        "content_index": index,
-                        "content": current_block.thinking,
-                        "partial": output,
-                    }
-                ]
+                events = [ThinkingEndEvent(content_index=index, content=current_block.thinking, partial=output)]
             else:
                 current_block.arguments = parse_streaming_json(current_tool_partial_args)
-                events = [
-                    {
-                        "type": "toolcall_end",
-                        "content_index": index,
-                        "tool_call": current_block,
-                        "partial": output,
-                    }
-                ]
+                events = [ToolCallEndEvent(content_index=index, tool_call=current_block, partial=output)]
+
             current_block = None
             current_tool_partial_args = ""
             return events
@@ -127,13 +123,15 @@ def stream_openai_completions(
             params = build_params(model, context, normalized)
             if normalized.on_payload is not None:
                 maybe_next = normalized.on_payload(deepcopy(params), model)
+                if inspect.isawaitable(maybe_next):
+                    maybe_next = await maybe_next
                 if maybe_next is not None:
                     params = maybe_next
 
-            openai_stream = client.chat.completions.create(**params)
-            yield {"type": "start", "partial": output}
+            openai_stream = await client.chat.completions.create(**params)
+            yield StartEvent(partial=output)
 
-            for chunk in openai_stream:
+            async for chunk in openai_stream:
                 chunk_data = to_dict(chunk)
                 if chunk_data.get("usage"):
                     output.usage = parse_chunk_usage(chunk_data["usage"], model)
@@ -159,18 +157,9 @@ def stream_openai_completions(
                             yield event
                         current_block = TextContent(text="")
                         output.content.append(current_block)
-                        yield {
-                            "type": "text_start",
-                            "content_index": block_index(),
-                            "partial": output,
-                        }
+                        yield TextStartEvent(content_index=block_index(), partial=output)
                     current_block.text += text_delta
-                    yield {
-                        "type": "text_delta",
-                        "content_index": block_index(),
-                        "delta": text_delta,
-                        "partial": output,
-                    }
+                    yield TextDeltaEvent(content_index=block_index(), delta=text_delta, partial=output)
 
                 reasoning_field = next(
                     (
@@ -184,25 +173,13 @@ def stream_openai_completions(
                     if current_block is None or current_block.type != "thinking":
                         for event in finish_current_block():
                             yield event
-                        current_block = ThinkingContent(
-                            thinking="",
-                            thinking_signature=reasoning_field,
-                        )
+                        current_block = ThinkingContent(thinking="", thinking_signature=reasoning_field)
                         output.content.append(current_block)
-                        yield {
-                            "type": "thinking_start",
-                            "content_index": block_index(),
-                            "partial": output,
-                        }
+                        yield ThinkingStartEvent(content_index=block_index(), partial=output)
 
                     reasoning_delta = delta[reasoning_field]
                     current_block.thinking += reasoning_delta
-                    yield {
-                        "type": "thinking_delta",
-                        "content_index": block_index(),
-                        "delta": reasoning_delta,
-                        "partial": output,
-                    }
+                    yield ThinkingDeltaEvent(content_index=block_index(), delta=reasoning_delta, partial=output)
 
                 tool_calls = delta.get("tool_calls") or []
                 for tool_call in tool_calls:
@@ -222,11 +199,7 @@ def stream_openai_completions(
                         )
                         current_tool_partial_args = ""
                         output.content.append(current_block)
-                        yield {
-                            "type": "toolcall_start",
-                            "content_index": block_index(),
-                            "partial": output,
-                        }
+                        yield ToolCallStartEvent(content_index=block_index(), partial=output)
 
                     if tool_call.get("id"):
                         current_block.id = tool_call["id"]
@@ -236,12 +209,11 @@ def stream_openai_completions(
                     if argument_delta:
                         current_tool_partial_args += argument_delta
                         current_block.arguments = parse_streaming_json(current_tool_partial_args)
-                    yield {
-                        "type": "toolcall_delta",
-                        "content_index": block_index(),
-                        "delta": argument_delta,
-                        "partial": output,
-                    }
+                    yield ToolCallDeltaEvent(
+                        content_index=block_index(),
+                        delta=argument_delta,
+                        partial=output,
+                    )
 
                 reasoning_details = delta.get("reasoning_details") or []
                 for detail in reasoning_details:
@@ -267,16 +239,16 @@ def stream_openai_completions(
             if output.stop_reason in {"aborted", "error"}:
                 raise RuntimeError("The completion ended in an error state.")
 
-            yield {"type": "done", "reason": output.stop_reason, "message": output}
+            yield DoneEvent(reason=output.stop_reason, message=output)
         except Exception as exc:
             output.stop_reason = "error"
             output.error_message = str(exc)
-            yield {"type": "error", "reason": output.stop_reason, "error": output}
+            yield ErrorEvent(reason=output.stop_reason, error=output)
 
     return AssistantMessageEventStream(producer)
 
 
-def stream_simple_openai_completions(
+def astream_simple_openai_completions(
     model: Model,
     context: Context,
     options: SimpleStreamOptions | Mapping[str, Any] | None = None,
@@ -293,10 +265,10 @@ def stream_simple_openai_completions(
         on_payload=base_options.on_payload,
         reasoning_effort=reasoning_effort,
     )
-    return stream_openai_completions(model, context, provider_options)
+    return astream_openai_completions(model, context, provider_options)
 
 
-def create_client(model: Model, api_key: str | None, headers: dict[str, str] | None) -> OpenAI:
+def create_client(model: Model, api_key: str | None, headers: dict[str, str] | None) -> AsyncOpenAI:
     if not api_key:
         raise ValueError("OPENAI_API_KEY is required.")
 
@@ -304,7 +276,7 @@ def create_client(model: Model, api_key: str | None, headers: dict[str, str] | N
     if headers:
         merged_headers.update(headers)
 
-    return OpenAI(
+    return AsyncOpenAI(
         api_key=api_key,
         base_url=model.base_url,
         default_headers=merged_headers or None,

@@ -3,6 +3,39 @@
 This repository now contains a standard Python project and the initial Python port of
 `pi-mono/packages/ai` for the OpenAI Chat Completions interface.
 
+## Async API
+
+`paw.pi_agent.ai` is asyncio-first. Use `astream` / `acomplete` / `astream_simple` /
+`acomplete_simple`.
+
+```python
+import asyncio
+
+from paw.pi_agent.ai import Context, UserMessage, acomplete, astream, get_model
+
+
+async def main() -> None:
+    model = get_model("openai", "gpt-4o-mini")
+
+    stream = astream(
+        model,
+        Context(messages=[UserMessage(content="Say hello")]),
+        {"max_tokens": 64},
+    )
+    async for event in stream:
+        print(event.type)
+
+    result = await acomplete(
+        model,
+        Context(messages=[UserMessage(content="Say hello")]),
+        {"max_tokens": 64},
+    )
+    print(result)
+
+
+asyncio.run(main())
+```
+
 ## Local environment
 
 Put local credentials in the repository root `.env.local`. The package and tests load
