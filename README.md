@@ -35,6 +35,14 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
+## HTTP Client Reuse
+
+`stream()` and `complete()` accept an optional `http_client_factory` in `options`.
+Use it when the caller wants to reuse a shared `httpx.AsyncClient` and its connection pool.
+
+If `http_client_factory` is omitted, the library creates and closes a fresh client per call.
+If `http_client_factory` is provided, the library uses the returned client and does not close it.
+
 ## Local environment
 
 Put local credentials in the repository root `.env.local`. The package and tests load

@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from time import time
 from typing import Any, Awaitable, Callable, Literal, TypeAlias
 
+import httpx
+
 Api: TypeAlias = str
 Provider: TypeAlias = str
 ThinkingLevel: TypeAlias = Literal["minimal", "low", "medium", "high", "xhigh"]
@@ -11,6 +13,8 @@ StopReason: TypeAlias = Literal["stop", "length", "toolUse", "error", "aborted"]
 ToolChoice: TypeAlias = Literal["auto", "none", "required"] | dict[str, Any]
 PayloadOverride: TypeAlias = dict[str, Any] | None | Awaitable[dict[str, Any] | None]
 PayloadTransform: TypeAlias = Callable[[dict[str, Any], "Model"], PayloadOverride]
+HttpClientFactoryResult: TypeAlias = httpx.AsyncClient | Awaitable[httpx.AsyncClient]
+HttpClientFactory: TypeAlias = Callable[["Model", "StreamOptions"], HttpClientFactoryResult]
 
 
 def now_ms() -> int:
@@ -166,6 +170,7 @@ class StreamOptions:
     api_key: str | None = None
     headers: dict[str, str] | None = None
     on_payload: PayloadTransform | None = None
+    http_client_factory: HttpClientFactory | None = None
 
 
 @dataclass(slots=True)

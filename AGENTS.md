@@ -17,3 +17,5 @@
 - `paw.pi_agent.ai` is asyncio-first.
 - Prefer `stream` and `complete`.
 - `AssistantMessageEventStream` is an async iterator of dataclass event objects.
+- `stream` / `complete` accept optional `http_client_factory` for shared `httpx.AsyncClient` injection.
+- The library closes only clients it created itself; caller-provided clients are caller-owned.

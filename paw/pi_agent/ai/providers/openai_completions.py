@@ -6,6 +6,7 @@ from copy import deepcopy
 from dataclasses import asdict, is_dataclass
 from typing import Any, Mapping
 
+import httpx
 from openai import AsyncOpenAI
 
 from ..env_api_keys import get_env_api_key
@@ -117,9 +118,11 @@ def _stream_openai_completions_with_provider_options(
             current_tool_partial_args = ""
             return events
 
+        client: AsyncOpenAI | None = None
+        owned_http_client: httpx.AsyncClient | None = None
         try:
             api_key = normalized.api_key or get_env_api_key(model.provider)
-            client = create_client(model, api_key, normalized.headers)
+            client, owned_http_client = await create_client(model, normalized, api_key)
             params = build_params(model, context, normalized)
             if normalized.on_payload is not None:
                 maybe_next = normalized.on_payload(deepcopy(params), model)
@@ -244,6 +247,9 @@ def _stream_openai_completions_with_provider_options(
             output.stop_reason = "error"
             output.error_message = str(exc)
             yield ErrorEvent(reason=output.stop_reason, error=output)
+        finally:
+            if owned_http_client is not None:
+                await owned_http_client.aclose()
 
     return AssistantMessageEventStream(producer)
 
@@ -268,18 +274,34 @@ def stream_openai_completions(
     return _stream_openai_completions_with_provider_options(model, context, provider_options)
 
 
-def create_client(model: Model, api_key: str | None, headers: dict[str, str] | None) -> AsyncOpenAI:
+async def create_client(
+    model: Model,
+    options: StreamOptions,
+    api_key: str | None,
+) -> tuple[AsyncOpenAI, httpx.AsyncClient | None]:
     if not api_key:
         raise ValueError("OPENAI_API_KEY is required.")
 
     merged_headers = dict(model.headers)
-    if headers:
-        merged_headers.update(headers)
+    if options.headers:
+        merged_headers.update(options.headers)
 
-    return AsyncOpenAI(
-        api_key=api_key,
-        base_url=model.base_url,
-        default_headers=merged_headers or None,
+    if options.http_client_factory is None:
+        http_client = httpx.AsyncClient(base_url=model.base_url)
+        owns_http_client = http_client
+    else:
+        factory_result = options.http_client_factory(model, options)
+        http_client = await factory_result if inspect.isawaitable(factory_result) else factory_result
+        owns_http_client = None
+
+    return (
+        AsyncOpenAI(
+            api_key=api_key,
+            base_url=model.base_url,
+            default_headers=merged_headers or None,
+            http_client=http_client,
+        ),
+        owns_http_client,
     )
 
 

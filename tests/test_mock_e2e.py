@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from dataclasses import replace
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import httpx
 import pytest
 
 from paw.pi_agent.ai import (
@@ -18,6 +19,8 @@ from paw.pi_agent.ai import (
     stream,
     get_model,
 )
+from paw.pi_agent.ai.providers.openai_completions import create_client
+from paw.pi_agent.ai.types import StreamOptions
 
 
 def make_chunk(*, delta: dict, finish_reason: str | None = None, usage: dict | None = None) -> dict:
@@ -194,3 +197,102 @@ async def test_stream_mock_e2e_reasoning_and_tool_call() -> None:
     assert tool_calls[0].arguments == {"city": "Beijing"}
     assert tool_calls[0].thought_signature is not None
     assert isinstance(events[-2], ToolCallEndEvent)
+
+
+class TrackingAsyncClient(httpx.AsyncClient):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.closed_calls = 0
+
+    async def aclose(self) -> None:
+        self.closed_calls += 1
+        await super().aclose()
+
+
+@pytest.mark.anyio
+async def test_create_client_uses_factory_without_owning_client() -> None:
+    model = get_model("openai", "gpt-4o-mini")
+    provided_client = TrackingAsyncClient(base_url=model.base_url)
+
+    def factory(_model, _options):
+        return provided_client
+
+    client, owned_http_client = await create_client(
+        model,
+        StreamOptions(api_key="test-key", http_client_factory=factory),
+        "test-key",
+    )
+
+    assert owned_http_client is None
+    assert client._client is provided_client
+    assert provided_client.closed_calls == 0
+    await provided_client.aclose()
+    assert provided_client.closed_calls == 1
+
+
+@pytest.mark.anyio
+async def test_create_client_supports_async_factory() -> None:
+    model = get_model("openai", "gpt-4o-mini")
+    provided_client = TrackingAsyncClient(base_url=model.base_url)
+
+    async def factory(_model, _options):
+        return provided_client
+
+    client, owned_http_client = await create_client(
+        model,
+        StreamOptions(api_key="test-key", http_client_factory=factory),
+        "test-key",
+    )
+
+    assert owned_http_client is None
+    assert client._client is provided_client
+    assert provided_client.closed_calls == 0
+    await provided_client.aclose()
+    assert provided_client.closed_calls == 1
+
+
+@pytest.mark.anyio
+async def test_create_client_owns_default_client() -> None:
+    model = get_model("openai", "gpt-4o-mini")
+
+    client, owned_http_client = await create_client(
+        model,
+        StreamOptions(api_key="test-key"),
+        "test-key",
+    )
+
+    assert owned_http_client is not None
+    assert client._client is owned_http_client
+    await owned_http_client.aclose()
+
+
+@pytest.mark.anyio
+async def test_stream_does_not_close_factory_client() -> None:
+    usage = {
+        "prompt_tokens": 4,
+        "completion_tokens": 2,
+        "prompt_tokens_details": {"cached_tokens": 0},
+        "completion_tokens_details": {"reasoning_tokens": 0},
+    }
+    with run_mock_openai_server(
+        [
+            make_chunk(delta={"content": "ok"}),
+            make_chunk(delta={}, finish_reason="stop", usage=usage),
+        ]
+    ) as (base_url, _state):
+        model = replace(get_model("openai", "gpt-4o-mini"), base_url=base_url)
+        shared_client = TrackingAsyncClient(base_url=base_url)
+
+        def factory(_model, _options):
+            return shared_client
+
+        response = await complete(
+            model,
+            Context(messages=[UserMessage(content="ping")]),
+            {"api_key": "test-key", "http_client_factory": factory},
+        )
+
+        assert response.stop_reason == "stop"
+        assert shared_client.closed_calls == 0
+        assert shared_client.is_closed is False
+        await shared_client.aclose()
