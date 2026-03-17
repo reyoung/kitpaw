@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "paw"
+version = "0.1.0"
+description = "Python implementation of paw agents and AI integrations"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "openai>=2.24.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+]
+
+[tool.uv]
+package = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "e2e: end-to-end tests",
+    "real_e2e: end-to-end tests that call a real OpenAI-compatible upstream",
+]
