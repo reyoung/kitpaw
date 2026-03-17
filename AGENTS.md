@@ -15,5 +15,5 @@
 ## AI API shape
 
 - `paw.pi_agent.ai` is asyncio-first.
-- Prefer `astream`, `acomplete`, `astream_simple`, and `acomplete_simple`.
+- Prefer `stream` and `complete`.
 - `AssistantMessageEventStream` is an async iterator of dataclass event objects.

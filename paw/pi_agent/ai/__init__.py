@@ -4,7 +4,7 @@ from .env_api_keys import get_env_api_key
 from .event_stream import AssistantMessageEventStream
 from .local_env import load_local_env
 from .models import get_model
-from .stream import acomplete, acomplete_simple, astream, astream_simple
+from .stream import complete, stream
 from .types import (
     AssistantMessage,
     AssistantMessageEvent,
@@ -66,11 +66,9 @@ __all__ = [
     "ToolCallStartEvent",
     "ToolResultMessage",
     "UserMessage",
-    "acomplete",
-    "acomplete_simple",
-    "astream",
-    "astream_simple",
+    "complete",
     "get_env_api_key",
     "get_model",
     "load_local_env",
+    "stream",
 ]

@@ -5,27 +5,26 @@ This repository now contains a standard Python project and the initial Python po
 
 ## Async API
 
-`paw.pi_agent.ai` is asyncio-first. Use `astream` / `acomplete` / `astream_simple` /
-`acomplete_simple`.
+`paw.pi_agent.ai` is asyncio-first. Use `stream` / `complete`.
 
 ```python
 import asyncio
 
-from paw.pi_agent.ai import Context, UserMessage, acomplete, astream, get_model
+from paw.pi_agent.ai import Context, UserMessage, complete, stream, get_model
 
 
 async def main() -> None:
     model = get_model("openai", "gpt-4o-mini")
 
-    stream = astream(
+    response_stream = stream(
         model,
         Context(messages=[UserMessage(content="Say hello")]),
         {"max_tokens": 64},
     )
-    async for event in stream:
+    async for event in response_stream:
         print(event.type)
 
-    result = await acomplete(
+    result = await complete(
         model,
         Context(messages=[UserMessage(content="Say hello")]),
         {"max_tokens": 64},

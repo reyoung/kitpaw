@@ -79,7 +79,7 @@ def has_tool_history(messages: list[Any]) -> bool:
     return False
 
 
-def astream_openai_completions(
+def _stream_openai_completions_with_provider_options(
     model: Model,
     context: Context,
     options: OpenAICompletionsOptions | StreamOptions | Mapping[str, Any] | None = None,
@@ -248,7 +248,7 @@ def astream_openai_completions(
     return AssistantMessageEventStream(producer)
 
 
-def astream_simple_openai_completions(
+def stream_openai_completions(
     model: Model,
     context: Context,
     options: SimpleStreamOptions | Mapping[str, Any] | None = None,
@@ -265,7 +265,7 @@ def astream_simple_openai_completions(
         on_payload=base_options.on_payload,
         reasoning_effort=reasoning_effort,
     )
-    return astream_openai_completions(model, context, provider_options)
+    return _stream_openai_completions_with_provider_options(model, context, provider_options)
 
 
 def create_client(model: Model, api_key: str | None, headers: dict[str, str] | None) -> AsyncOpenAI:

@@ -14,8 +14,8 @@ from paw.pi_agent.ai import (
     Tool,
     ToolCallEndEvent,
     UserMessage,
-    acomplete,
-    astream_simple,
+    complete,
+    stream,
     get_model,
 )
 
@@ -80,7 +80,7 @@ def run_mock_openai_server(chunks: list[dict]):
 
 
 @pytest.mark.anyio
-async def test_acomplete_mock_e2e_text_response() -> None:
+async def test_complete_mock_e2e_text_response() -> None:
     usage = {
         "prompt_tokens": 11,
         "completion_tokens": 7,
@@ -94,7 +94,7 @@ async def test_acomplete_mock_e2e_text_response() -> None:
         ]
     ) as (base_url, state):
         model = replace(get_model("openai", "gpt-4o-mini"), base_url=base_url)
-        result = await acomplete(
+        result = await complete(
             model,
             Context(messages=[UserMessage(content="Say hello")]),
             {"api_key": "test-key", "max_tokens": 32},
@@ -112,7 +112,7 @@ async def test_acomplete_mock_e2e_text_response() -> None:
 
 
 @pytest.mark.anyio
-async def test_astream_simple_mock_e2e_reasoning_and_tool_call() -> None:
+async def test_stream_mock_e2e_reasoning_and_tool_call() -> None:
     usage = {
         "prompt_tokens": 12,
         "completion_tokens": 6,
@@ -152,7 +152,7 @@ async def test_astream_simple_mock_e2e_reasoning_and_tool_call() -> None:
 
     with run_mock_openai_server(chunks) as (base_url, state):
         model = replace(get_model("openai", "gpt-4o-mini"), base_url=base_url)
-        stream = astream_simple(
+        response_stream = stream(
             model,
             Context(
                 messages=[UserMessage(content="Look up Beijing")],
@@ -170,8 +170,8 @@ async def test_astream_simple_mock_e2e_reasoning_and_tool_call() -> None:
             ),
             {"api_key": "test-key", "reasoning": "medium"},
         )
-        events = [event async for event in stream]
-        result = await stream.result()
+        events = [event async for event in response_stream]
+        result = await response_stream.result()
 
     request = state["request"]
     assert isinstance(request, dict)
