@@ -87,5 +87,7 @@ class AssistantMessageEventStream(EventStream[AssistantMessageEvent, AssistantMe
         super().__init__(
             producer=producer,
             is_complete=lambda event: isinstance(event, (DoneEvent, ErrorEvent)),
-            extract_result=lambda event: event.message if isinstance(event, DoneEvent) else event.error,
+            extract_result=lambda event: (
+                event.message if isinstance(event, DoneEvent) else event.error
+            ),
         )

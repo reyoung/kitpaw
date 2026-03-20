@@ -39,7 +39,9 @@ async def test_real_openai_compatible_smoke() -> None:
             errors.append(f"{model_name}: {result.error_message}")
             continue
 
-        text = "".join(block.text for block in result.content if isinstance(block, TextContent)).strip()
+        text = "".join(
+            block.text for block in result.content if isinstance(block, TextContent)
+        ).strip()
         assert text
         assert result.stop_reason in {"stop", "length"}
         return

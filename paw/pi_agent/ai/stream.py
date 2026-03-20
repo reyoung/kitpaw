@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from .event_stream import AssistantMessageEventStream
-from .types import AssistantMessage, Context, Model, SimpleStreamOptions
 from .providers.openai_completions import stream_openai_completions
+from .types import AssistantMessage, Context, Model, SimpleStreamOptions
 
 
 def stream(

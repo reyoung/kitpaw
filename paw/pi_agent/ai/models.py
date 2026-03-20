@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from .env_api_keys import DEFAULT_OPENAI_BASE_URL, get_env_base_url
-from .types import Api, Model, ModelCost, Usage
+from .env_api_keys import get_env_base_url
+from .types import Model, ModelCost, Usage
 
 
 def _build_openai_model(
@@ -52,10 +52,7 @@ def calculate_cost(model: Model, usage: Usage) -> Usage:
     usage.cost.cache_read = (model.cost.cache_read / 1_000_000) * usage.cache_read
     usage.cost.cache_write = (model.cost.cache_write / 1_000_000) * usage.cache_write
     usage.cost.total = (
-        usage.cost.input
-        + usage.cost.output
-        + usage.cost.cache_read
-        + usage.cost.cache_write
+        usage.cost.input + usage.cost.output + usage.cost.cache_read + usage.cost.cache_write
     )
     return usage
 

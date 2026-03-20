@@ -43,6 +43,50 @@ Use it when the caller wants to reuse a shared `httpx.AsyncClient` and its conne
 If `http_client_factory` is omitted, the library creates and closes a fresh client per call.
 If `http_client_factory` is provided, the library uses the returned client and does not close it.
 
+## Agent Runtime
+
+`paw.pi_agent.agent` provides the higher-level agent runtime on top of `paw.pi_agent.ai`.
+
+```python
+import asyncio
+
+from paw.pi_agent.agent import Agent, AgentTool, AgentToolResult
+from paw.pi_agent.ai import TextContent
+
+
+async def main() -> None:
+    agent = Agent()
+    agent.set_system_prompt("You are a concise assistant.")
+
+    agent.set_tools(
+        [
+            AgentTool(
+                name="echo",
+                label="Echo",
+                description="Return the provided text",
+                parameters={
+                    "type": "object",
+                    "properties": {"text": {"type": "string"}},
+                    "required": ["text"],
+                },
+                execute=lambda _tool_call_id, args, *_: AgentToolResult(
+                    content=[TextContent(text=args["text"])],
+                    details=None,
+                ),
+            )
+        ]
+    )
+
+    await agent.prompt("Say hello")
+    print(agent.state.messages[-1])
+
+
+asyncio.run(main())
+```
+
+Use `agent.continue_()` to resume from the last non-assistant message, or `agent.follow_up()`
+and `agent.steer()` to queue additional messages for the next turn.
+
 ## Local environment
 
 Put local credentials in the repository root `.env.local`. The package and tests load

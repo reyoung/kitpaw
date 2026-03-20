@@ -9,16 +9,28 @@ description = "Python implementation of paw agents and AI integrations"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "jsonschema>=4.23.0",
+    "markdown-it-py>=4.0.0",
     "openai>=2.24.0",
+    "regex>=2025.9.18",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.4.2",
+    "ruff>=0.15.6",
 ]
 
 [tool.uv]
 package = true
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

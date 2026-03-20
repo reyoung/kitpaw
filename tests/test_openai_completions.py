@@ -2,9 +2,26 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from paw.pi_agent.ai import Context, ImageContent, TextContent, Tool, ToolCall, ToolResultMessage, UserMessage, get_model
-from paw.pi_agent.ai.providers.openai_completions import build_params, convert_messages, convert_tools
-from paw.pi_agent.ai.types import AssistantMessage, OpenAICompletionsCompat, OpenAICompletionsOptions
+from paw.pi_agent.ai import (
+    Context,
+    ImageContent,
+    TextContent,
+    Tool,
+    ToolCall,
+    ToolResultMessage,
+    UserMessage,
+    get_model,
+)
+from paw.pi_agent.ai.providers.openai_completions import (
+    build_params,
+    convert_messages,
+    convert_tools,
+)
+from paw.pi_agent.ai.types import (
+    AssistantMessage,
+    OpenAICompletionsCompat,
+    OpenAICompletionsOptions,
+)
 
 
 def test_build_params_forwards_tool_choice_and_reasoning_effort() -> None:
@@ -89,14 +106,22 @@ def test_convert_messages_batches_tool_result_images() -> None:
 
     messages = convert_messages(model, context, compat)
 
-    assert [message["role"] for message in messages] == ["user", "assistant", "tool", "tool", "user"]
+    assert [message["role"] for message in messages] == [
+        "user",
+        "assistant",
+        "tool",
+        "tool",
+        "user",
+    ]
     image_message = messages[-1]
     image_parts = [part for part in image_message["content"] if part["type"] == "image_url"]
     assert len(image_parts) == 2
 
 
 def test_build_params_uses_max_tokens_for_bigmodel_compat() -> None:
-    model = replace(get_model("openai", "glm-4.7"), base_url="https://open.bigmodel.cn/api/coding/paas/v4")
+    model = replace(
+        get_model("openai", "glm-4.7"), base_url="https://open.bigmodel.cn/api/coding/paas/v4"
+    )
     params = build_params(
         model,
         Context(messages=[UserMessage(content="hi")]),

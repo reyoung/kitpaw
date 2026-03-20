@@ -3,7 +3,15 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Callable
 
-from ..types import AssistantMessage, Message, Model, TextContent, ToolCall, ToolResultMessage, now_ms
+from ..types import (
+    AssistantMessage,
+    Message,
+    Model,
+    TextContent,
+    ToolCall,
+    ToolResultMessage,
+    now_ms,
+)
 
 
 def transform_messages(

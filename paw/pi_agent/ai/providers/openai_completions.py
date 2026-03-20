@@ -59,7 +59,9 @@ def normalize_options(
     raise TypeError(f"Unsupported options type: {type(options)!r}")
 
 
-def normalize_simple_options(options: SimpleStreamOptions | Mapping[str, Any] | None) -> SimpleStreamOptions:
+def normalize_simple_options(
+    options: SimpleStreamOptions | Mapping[str, Any] | None,
+) -> SimpleStreamOptions:
     if options is None:
         return SimpleStreamOptions()
     if isinstance(options, SimpleStreamOptions):
@@ -75,7 +77,9 @@ def has_tool_history(messages: list[Any]) -> bool:
     for message in messages:
         if message.role == "toolResult":
             return True
-        if message.role == "assistant" and any(block.type == "toolCall" for block in message.content):
+        if message.role == "assistant" and any(
+            block.type == "toolCall" for block in message.content
+        ):
             return True
     return False
 
@@ -107,12 +111,20 @@ def _stream_openai_completions_with_provider_options(
 
             index = block_index()
             if current_block.type == "text":
-                events = [TextEndEvent(content_index=index, content=current_block.text, partial=output)]
+                events = [
+                    TextEndEvent(content_index=index, content=current_block.text, partial=output)
+                ]
             elif current_block.type == "thinking":
-                events = [ThinkingEndEvent(content_index=index, content=current_block.thinking, partial=output)]
+                events = [
+                    ThinkingEndEvent(
+                        content_index=index, content=current_block.thinking, partial=output
+                    )
+                ]
             else:
                 current_block.arguments = parse_streaming_json(current_tool_partial_args)
-                events = [ToolCallEndEvent(content_index=index, tool_call=current_block, partial=output)]
+                events = [
+                    ToolCallEndEvent(content_index=index, tool_call=current_block, partial=output)
+                ]
 
             current_block = None
             current_tool_partial_args = ""
@@ -162,7 +174,9 @@ def _stream_openai_completions_with_provider_options(
                         output.content.append(current_block)
                         yield TextStartEvent(content_index=block_index(), partial=output)
                     current_block.text += text_delta
-                    yield TextDeltaEvent(content_index=block_index(), delta=text_delta, partial=output)
+                    yield TextDeltaEvent(
+                        content_index=block_index(), delta=text_delta, partial=output
+                    )
 
                 reasoning_field = next(
                     (
@@ -176,13 +190,17 @@ def _stream_openai_completions_with_provider_options(
                     if current_block is None or current_block.type != "thinking":
                         for event in finish_current_block():
                             yield event
-                        current_block = ThinkingContent(thinking="", thinking_signature=reasoning_field)
+                        current_block = ThinkingContent(
+                            thinking="", thinking_signature=reasoning_field
+                        )
                         output.content.append(current_block)
                         yield ThinkingStartEvent(content_index=block_index(), partial=output)
 
                     reasoning_delta = delta[reasoning_field]
                     current_block.thinking += reasoning_delta
-                    yield ThinkingDeltaEvent(content_index=block_index(), delta=reasoning_delta, partial=output)
+                    yield ThinkingDeltaEvent(
+                        content_index=block_index(), delta=reasoning_delta, partial=output
+                    )
 
                 tool_calls = delta.get("tool_calls") or []
                 for tool_call in tool_calls:
@@ -262,7 +280,9 @@ def stream_openai_completions(
     normalized = normalize_simple_options(options)
     api_key = normalized.api_key or get_env_api_key(model.provider)
     base_options = build_base_options(model, normalized, api_key)
-    reasoning_effort = normalized.reasoning if supports_xhigh(model) else clamp_reasoning(normalized.reasoning)
+    reasoning_effort = (
+        normalized.reasoning if supports_xhigh(model) else clamp_reasoning(normalized.reasoning)
+    )
     provider_options = OpenAICompletionsOptions(
         temperature=base_options.temperature,
         max_tokens=base_options.max_tokens,
@@ -291,7 +311,9 @@ async def create_client(
         owns_http_client = http_client
     else:
         factory_result = options.http_client_factory(model, options)
-        http_client = await factory_result if inspect.isawaitable(factory_result) else factory_result
+        http_client = (
+            await factory_result if inspect.isawaitable(factory_result) else factory_result
+        )
         owns_http_client = None
 
     return (
@@ -305,7 +327,9 @@ async def create_client(
     )
 
 
-def build_params(model: Model, context: Context, options: OpenAICompletionsOptions) -> dict[str, Any]:
+def build_params(
+    model: Model, context: Context, options: OpenAICompletionsOptions
+) -> dict[str, Any]:
     compat = get_compat(model)
     messages = convert_messages(model, context, compat)
     params: dict[str, Any] = {
@@ -357,7 +381,9 @@ def convert_messages(
     def normalize_tool_call_id(tool_call_id: str, current_model: Model, _: AssistantMessage) -> str:
         if "|" in tool_call_id:
             call_id = tool_call_id.split("|", 1)[0]
-            return "".join(char if char.isalnum() or char in {"_", "-"} else "_" for char in call_id)[:40]
+            return "".join(
+                char if char.isalnum() or char in {"_", "-"} else "_" for char in call_id
+            )[:40]
         if current_model.provider == "openai" and len(tool_call_id) > 40:
             return tool_call_id[:40]
         return tool_call_id
@@ -412,12 +438,12 @@ def convert_messages(
                 "content": "" if compat.requires_assistant_after_tool_result else None,
             }
             text_blocks = [
-                block
-                for block in message.content
-                if block.type == "text" and block.text.strip()
+                block for block in message.content if block.type == "text" and block.text.strip()
             ]
             if text_blocks:
-                assistant_msg["content"] = "".join(sanitize_surrogates(block.text) for block in text_blocks)
+                assistant_msg["content"] = "".join(
+                    sanitize_surrogates(block.text) for block in text_blocks
+                )
 
             thinking_blocks = [
                 block
@@ -428,11 +454,15 @@ def convert_messages(
                 thinking_text = "\n\n".join(block.thinking for block in thinking_blocks)
                 if compat.requires_thinking_as_text:
                     existing = assistant_msg.get("content") or ""
-                    assistant_msg["content"] = thinking_text if not existing else f"{thinking_text}\n\n{existing}"
+                    assistant_msg["content"] = (
+                        thinking_text if not existing else f"{thinking_text}\n\n{existing}"
+                    )
                 else:
                     signature = thinking_blocks[0].thinking_signature
                     if signature:
-                        assistant_msg[signature] = "\n".join(block.thinking for block in thinking_blocks)
+                        assistant_msg[signature] = "\n".join(
+                            block.thinking for block in thinking_blocks
+                        )
 
             tool_calls = [block for block in message.content if block.type == "toolCall"]
             if tool_calls:
@@ -459,7 +489,9 @@ def convert_messages(
                     assistant_msg["reasoning_details"] = reasoning_details
 
             content = assistant_msg.get("content")
-            has_content = content is not None and (len(content) > 0 if isinstance(content, str) else bool(content))
+            has_content = content is not None and (
+                len(content) > 0 if isinstance(content, str) else bool(content)
+            )
             if has_content or assistant_msg.get("tool_calls"):
                 params.append(assistant_msg)
             last_role = message.role
@@ -471,9 +503,7 @@ def convert_messages(
             tool_message = transformed_messages[i]
             assert isinstance(tool_message, ToolResultMessage)
             text_result = "\n".join(
-                block.text
-                for block in tool_message.content
-                if block.type == "text"
+                block.text for block in tool_message.content if block.type == "text"
             )
             has_images = any(block.type == "image" for block in tool_message.content)
             tool_result_message: dict[str, Any] = {
@@ -499,7 +529,9 @@ def convert_messages(
 
         if image_blocks:
             if compat.requires_assistant_after_tool_result:
-                params.append({"role": "assistant", "content": "I have processed the tool results."})
+                params.append(
+                    {"role": "assistant", "content": "I have processed the tool results."}
+                )
             params.append(
                 {
                     "role": "user",
@@ -591,7 +623,9 @@ def detect_compat(model: Model) -> OpenAICompletionsCompat:
         supports_reasoning_effort=not is_grok and not is_zai and not is_bigmodel,
         reasoning_effort_map=reasoning_effort_map,
         supports_usage_in_streaming=True,
-        max_tokens_field="max_tokens" if "chutes.ai" in base_url or is_bigmodel else "max_completion_tokens",
+        max_tokens_field="max_tokens"
+        if "chutes.ai" in base_url or is_bigmodel
+        else "max_completion_tokens",
         requires_tool_result_name=False,
         requires_assistant_after_tool_result=False,
         requires_thinking_as_text=False,

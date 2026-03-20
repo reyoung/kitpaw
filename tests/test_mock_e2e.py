@@ -16,8 +16,8 @@ from paw.pi_agent.ai import (
     ToolCallEndEvent,
     UserMessage,
     complete,
-    stream,
     get_model,
+    stream,
 )
 from paw.pi_agent.ai.providers.openai_completions import create_client
 from paw.pi_agent.ai.types import StreamOptions
@@ -130,7 +130,7 @@ async def test_stream_mock_e2e_reasoning_and_tool_call() -> None:
                     {
                         "id": "call_1",
                         "type": "function",
-                        "function": {"name": "lookup", "arguments": "{\"city\":\"Bei"},
+                        "function": {"name": "lookup", "arguments": '{"city":"Bei'},
                     }
                 ]
             }
@@ -141,7 +141,7 @@ async def test_stream_mock_e2e_reasoning_and_tool_call() -> None:
                     {
                         "id": "call_1",
                         "type": "function",
-                        "function": {"arguments": "jing\"}"},
+                        "function": {"arguments": 'jing"}'},
                     }
                 ],
                 "reasoning_details": [
