@@ -87,6 +87,33 @@ asyncio.run(main())
 Use `agent.continue_()` to resume from the last non-assistant message, or `agent.follow_up()`
 and `agent.steer()` to queue additional messages for the next turn.
 
+## Code Agent
+
+`paw.pi_agent.code_agent` is the Python port of the `pi` coding-agent package. It currently
+ships:
+
+- SDK session creation via `create_agent_session()`
+- built-in coding tools (`read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`)
+- `pi` CLI entrypoint with print, JSON, RPC, and minimal interactive modes
+
+Run a print-mode smoke:
+
+```bash
+pi -p "Reply with exactly the word pong."
+```
+
+Run JSON mode:
+
+```bash
+pi --mode json "List the files in this repository"
+```
+
+Run RPC mode:
+
+```bash
+pi --mode rpc
+```
+
 ## Local environment
 
 Put local credentials in the repository root `.env.local`. The package and tests load

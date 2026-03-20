@@ -15,6 +15,9 @@ dependencies = [
     "regex>=2025.9.18",
 ]
 
+[project.scripts]
+pi = "paw.pi_agent.code_agent.main:main"
+
 [dependency-groups]
 dev = [
     "pytest>=8.4.2",

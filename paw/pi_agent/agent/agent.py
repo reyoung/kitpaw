@@ -128,6 +128,9 @@ class Agent:
     def has_queued_messages(self) -> bool:
         return bool(self._steering_queue or self._follow_up_queue)
 
+    def get_pending_message_count(self) -> int:
+        return len(self._steering_queue) + len(self._follow_up_queue)
+
     def abort(self) -> None:
         if self._cancel_event is not None:
             self._cancel_event.set()

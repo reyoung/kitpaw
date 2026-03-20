@@ -2,6 +2,8 @@
 /.env
 /.env.local
 /.env.*.local
+/.pi/
+/loop.sh
 /.venv/
 /.pytest_cache/
 /__pycache__/
