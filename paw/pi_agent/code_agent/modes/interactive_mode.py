@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import os
+import asyncio
 
 from ..agent_session import AgentSession
-from ..session_manager import SessionManager
 
 
 def _print_help() -> None:
@@ -36,9 +35,10 @@ def _print_tree(nodes: list[dict[str, object]], prefix: str = "") -> None:
 async def run_interactive_mode(session: AgentSession) -> int:
     print("pi python port interactive mode")
     print("Type /help for commands.")
+    loop = asyncio.get_event_loop()
     while True:
         try:
-            message = input("> ").strip()
+            message = (await loop.run_in_executor(None, input, "> ")).strip()
         except EOFError:
             print()
             return 0
@@ -363,7 +363,16 @@ async def run_interactive_mode(session: AgentSession) -> int:
                         f' description={item["description"]}'
                     )
             else:
-                await session.set_model("openai", parts[1].strip())
+                model_name = parts[1].strip()
+                # Use the current model's provider if available, otherwise fall back to settings or "openai".
+                current_model = session.model
+                if "/" in model_name:
+                    provider, model_id = model_name.split("/", 1)
+                elif current_model is not None:
+                    provider, model_id = current_model.provider, model_name
+                else:
+                    provider, model_id = session.settings_manager.get_default_provider() or "openai", model_name
+                await session.set_model(provider, model_id)
                 print(f"model: {session.model.provider}/{session.model.id}")
             continue
         if message == "/cycle-model":
@@ -443,7 +452,7 @@ async def run_interactive_mode(session: AgentSession) -> int:
         if message == "/resume" or message.startswith("/resume "):
             query = message.split(maxsplit=1)[1].strip() if " " in message else ""
             if not query:
-                session_file = SessionManager.find_most_recent_session(os.getcwd())
+                session_file = session.find_most_recent_session()
                 if session_file is None:
                     print("no previous session")
                 else:

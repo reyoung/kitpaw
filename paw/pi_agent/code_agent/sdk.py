@@ -12,7 +12,7 @@ from .message_restore import restore_message
 from .messages import convert_to_llm
 from .model_registry import ModelRegistry
 from .resource_loader import DefaultResourceLoader
-from .session_manager import SessionManager
+from .session_manager import SessionManager, infer_session_dir
 from .settings_manager import SettingsManager
 from .tools import (
     create_all_tools,
@@ -24,6 +24,7 @@ from .tools import (
     create_ls_tool,
     create_read_only_tools,
     create_read_tool,
+    create_uv_tool,
     create_write_tool,
 )
 
@@ -60,6 +61,11 @@ async def create_agent_session(options: CreateAgentSessionOptions | None = None)
     resource_loader = opts.resource_loader or DefaultResourceLoader(cwd, agent_dir, settings_manager)
     await resource_loader.reload()
     session_manager = opts.session_manager or SessionManager.create(cwd, opts.session_dir)
+    effective_session_dir = opts.session_dir
+    if effective_session_dir is None:
+        session_file = session_manager.get_session_file()
+        if session_file is not None:
+            effective_session_dir = infer_session_dir(session_file)
     context = session_manager.build_runtime_context() if session_manager.entries else {"messages": [], "model": None, "thinkingLevel": None}
     restored_messages = [restore_message(message) for message in context["messages"] if isinstance(message, dict)]
     tools = opts.tools or create_coding_tools(cwd, command_prefix=settings_manager.get_shell_command_prefix())
@@ -89,6 +95,7 @@ async def create_agent_session(options: CreateAgentSessionOptions | None = None)
             session_manager=session_manager,
             settings_manager=settings_manager,
             cwd=cwd,
+            session_dir=effective_session_dir,
             model_registry=model_registry,
             resource_loader=resource_loader,
         )
@@ -110,5 +117,6 @@ __all__ = [
     "create_ls_tool",
     "create_read_only_tools",
     "create_read_tool",
+    "create_uv_tool",
     "create_write_tool",
 ]

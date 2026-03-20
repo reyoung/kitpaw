@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from xml.sax.saxutils import escape as xml_escape, quoteattr as xml_quoteattr
+
 from .types import Skill
 
 
@@ -7,7 +9,7 @@ def format_skills_for_prompt(skills: list[Skill]) -> str:
     if not skills:
         return ""
     blocks = [
-        f'<skill name="{skill.name}" location="{skill.base_dir}">{skill.description}</skill>'
+        f'<skill name={xml_quoteattr(skill.name)} location={xml_quoteattr(skill.base_dir)}>{xml_escape(skill.description)}</skill>'
         for skill in skills
         if not skill.disable_model_invocation
     ]

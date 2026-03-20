@@ -91,7 +91,11 @@ async def amain(argv: list[str] | None = None) -> int:
     if args.thinking:
         session.set_thinking_level(args.thinking)
     if args.api_key:
-        os.environ["OPENAI_API_KEY"] = args.api_key
+        # Store API key in auth_storage in-memory override rather than
+        # setting it as an environment variable (which leaks to child processes).
+        session.model_registry.auth_storage.set_runtime_api_key(
+            args.provider or "openai", args.api_key
+        )
     if args.tools:
         tool_names = [name.strip() for name in args.tools.split(",") if name.strip()]
         all_tools = create_all_tools(session.cwd, command_prefix=session.settings_manager.get_shell_command_prefix())

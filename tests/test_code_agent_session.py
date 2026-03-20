@@ -189,6 +189,52 @@ async def test_agent_session_model_and_theme_selector_schema(tmp_path: Path, mon
 
 
 @pytest.mark.anyio
+async def test_agent_session_uses_custom_agent_dir_for_non_prompt_resources(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_MODEL", "gpt-4o-mini")
+    monkeypatch.delenv("PI_CODING_AGENT_DIR", raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+
+    global_agent_dir = tmp_path / "home" / ".pi" / "agent"
+    (global_agent_dir / "skills" / "global-skill").mkdir(parents=True)
+    (global_agent_dir / "skills" / "global-skill" / "SKILL.md").write_text(
+        "---\nname: global-skill\ndescription: global skill\n---\nbody\n",
+        encoding="utf-8",
+    )
+    (global_agent_dir / "themes").mkdir(parents=True)
+    (global_agent_dir / "themes" / "global-theme.json").write_text('{"name":"global-theme"}', encoding="utf-8")
+    (global_agent_dir / "extensions").mkdir(parents=True)
+    (global_agent_dir / "extensions" / "global_ext.py").write_text("VALUE = 'global'\n", encoding="utf-8")
+
+    custom_agent_dir = tmp_path / "custom-agent"
+    (custom_agent_dir / "skills" / "custom-skill").mkdir(parents=True)
+    (custom_agent_dir / "skills" / "custom-skill" / "SKILL.md").write_text(
+        "---\nname: custom-skill\ndescription: custom skill\n---\nbody\n",
+        encoding="utf-8",
+    )
+    (custom_agent_dir / "themes").mkdir(parents=True)
+    (custom_agent_dir / "themes" / "custom-theme.json").write_text('{"name":"custom-theme"}', encoding="utf-8")
+    (custom_agent_dir / "extensions").mkdir(parents=True)
+    (custom_agent_dir / "extensions" / "custom_ext.py").write_text("VALUE = 'custom'\n", encoding="utf-8")
+
+    result = await create_agent_session(
+        CreateAgentSessionOptions(
+            cwd=str(tmp_path),
+            agent_dir=str(custom_agent_dir),
+            session_manager=SessionManager.in_memory(str(tmp_path)),
+        )
+    )
+
+    resources = result.session.get_resource_schema()
+    assert [item["name"] for item in resources["skills"]] == ["custom-skill"]
+    assert [item["name"] for item in resources["themes"]] == ["custom-theme"]
+    assert len(resources["extensions"]) == 1
+    assert "custom_ext" in resources["extensions"][0]["name"]
+
+
+@pytest.mark.anyio
 async def test_agent_session_command_schema(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.setenv("OPENAI_MODEL", "gpt-4o-mini")
@@ -383,6 +429,26 @@ async def test_agent_session_package_and_resource_schema(tmp_path: Path, monkeyp
     assert not any(item["source"] == str(extra) for item in result.session.list_packages())
 
 
+def test_package_manager_isolates_user_and_project_install_paths(tmp_path: Path) -> None:
+    source = tmp_path / "pkgsrc"
+    source.mkdir()
+    (source / "note.txt").write_text("hello", encoding="utf-8")
+
+    manager = PackageManager(str(tmp_path), str(tmp_path / "agent"), None)
+    user_path = Path(manager.install(str(source), local=False))
+    project_path = Path(manager.install(str(source), local=True))
+
+    assert user_path != project_path
+    assert user_path.parent == tmp_path / "agent" / "packages"
+    assert project_path.parent == tmp_path / ".pi" / "packages"
+
+    removed = manager.remove(str(source), local=True)
+    assert removed is True
+    assert not project_path.exists()
+    assert user_path.exists()
+    assert manager.get_installed_path(str(source), "user") == str(user_path)
+
+
 def test_package_manager_uses_stable_digest_for_install_path(tmp_path: Path) -> None:
     source = tmp_path / "pkgsrc"
     source.mkdir()
@@ -394,6 +460,34 @@ def test_package_manager_uses_stable_digest_for_install_path(tmp_path: Path) -> 
 
     assert installed_path.name == expected_key
     assert Path(manager.install(str(source))).name == expected_key
+
+
+@pytest.mark.anyio
+async def test_agent_session_keeps_custom_session_dir_for_navigation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_MODEL", "gpt-4o-mini")
+
+    root = str(tmp_path)
+    session_root = tmp_path / "custom-sessions"
+    first = SessionManager.create(root, session_root)
+    first.append_message(UserMessage(content="alpha prompt"))
+    first.set_session_name("alpha")
+    second = SessionManager.create(root, session_root)
+    second.append_message(UserMessage(content="beta prompt"))
+    second.set_session_name("beta")
+
+    result = await create_agent_session(CreateAgentSessionOptions(cwd=root, session_manager=first))
+
+    assert Path(second.get_session_file()) in {Path(path) for path in result.session.list_sessions()}
+    assert any(Path(info.path) == Path(second.get_session_file()) for info in result.session.list_session_infos())
+    assert result.session.find_most_recent_session() is not None
+    assert result.session.resolve_session("beta") == second.get_session_file()
+
+    resolved = await result.session.resolve_and_switch_session("beta")
+    assert resolved == second.get_session_file()
+    assert result.session.session_file == second.get_session_file()
 
 
 @pytest.mark.anyio

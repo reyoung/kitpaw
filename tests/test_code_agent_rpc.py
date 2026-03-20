@@ -46,6 +46,98 @@ def test_code_agent_rpc_get_state(tmp_path: Path) -> None:
     assert response["data"]["message_count"] == 0
 
 
+def test_code_agent_rpc_prompt_accepts_streaming_behavior(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    pythonpath = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = os.getcwd() if not pythonpath else f"{os.getcwd()}:{pythonpath}"
+    env["OPENAI_API_KEY"] = "test-key"
+    env["OPENAI_MODEL"] = "gpt-4o-mini"
+    env["PI_CODING_AGENT_DIR"] = str(tmp_path / "agent")
+
+    with run_mock_openai_server(
+        [
+            make_chunk(delta={"content": "hello"}),
+            make_chunk(delta={}, finish_reason="stop", usage={"prompt_tokens": 4, "completion_tokens": 2}),
+        ]
+    ) as (base_url, _state):
+        env["OPENAI_BASE_URL"] = base_url
+        process = subprocess.Popen(
+            [sys.executable, "-m", "paw.pi_agent.code_agent", "--mode", "rpc", "--no-session"],
+            cwd=str(Path(__file__).resolve().parent.parent),
+            env=env,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        assert process.stdin is not None
+        assert process.stdout is not None
+        process.stdin.write(json.dumps({"id": "1", "type": "prompt", "message": "Say hello", "streamingBehavior": "steer"}) + "\n")
+        process.stdin.flush()
+
+        response = None
+        while response is None:
+            item = json.loads(process.stdout.readline())
+            if item.get("type") == "response" and item.get("id") == "1":
+                response = item
+
+        process.kill()
+        process.wait(timeout=5)
+
+    assert response["success"] is True
+
+
+def test_code_agent_rpc_uses_custom_session_dir_for_navigation(tmp_path: Path) -> None:
+    from paw.pi_agent.ai import UserMessage
+    from paw.pi_agent.code_agent.session_manager import SessionManager
+
+    env = os.environ.copy()
+    pythonpath = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = os.getcwd() if not pythonpath else f"{os.getcwd()}:{pythonpath}"
+    env["OPENAI_API_KEY"] = "test-key"
+    env["OPENAI_MODEL"] = "gpt-4o-mini"
+    env["PI_CODING_AGENT_DIR"] = str(tmp_path / "agent")
+
+    root = str(Path(__file__).resolve().parent.parent)
+    session_root = tmp_path / "custom-sessions"
+    session = SessionManager.create(root, session_root)
+    session.append_message(UserMessage(content="rpc prompt"))
+    session.set_session_name("rpc-demo")
+
+    process = subprocess.Popen(
+        [sys.executable, "-m", "paw.pi_agent.code_agent", "--mode", "rpc", "--session-dir", str(session_root)],
+        cwd=root,
+        env=env,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    assert process.stdin is not None
+    assert process.stdout is not None
+
+    for payload in (
+        {"id": "1", "type": "list_sessions"},
+        {"id": "2", "type": "list_session_infos"},
+        {"id": "3", "type": "resolve_session", "query": "rpc-demo"},
+    ):
+        process.stdin.write(json.dumps(payload) + "\n")
+        process.stdin.flush()
+
+    responses = {}
+    while len(responses) < 3:
+        item = json.loads(process.stdout.readline())
+        if item.get("type") == "response":
+            responses[item["id"]] = item
+
+    process.kill()
+    process.wait(timeout=5)
+
+    assert any(path.startswith(str(session_root)) for path in responses["1"]["data"]["sessions"])
+    assert any(entry["path"] == session.get_session_file() for entry in responses["2"]["data"]["sessions"])
+    assert responses["3"]["data"]["path"] == session.get_session_file()
+
+
 def test_code_agent_rpc_extended_commands(tmp_path: Path) -> None:
     env = os.environ.copy()
     pythonpath = env.get("PYTHONPATH")

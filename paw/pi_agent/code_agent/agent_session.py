@@ -16,7 +16,7 @@ from .export_html import export_from_file
 from .message_restore import restore_message
 from .model_registry import ModelRegistry
 from .package_manager import PackageManager
-from .session_manager import SessionManager
+from .session_manager import SessionManager, infer_session_dir
 from .settings_manager import SettingsManager
 from .summarizer import estimate_tokens, generate_summary
 from .system_prompt import build_system_prompt
@@ -42,6 +42,7 @@ class AgentSessionConfig:
     session_manager: SessionManager
     settings_manager: SettingsManager
     cwd: str
+    session_dir: str | None
     model_registry: ModelRegistry
     resource_loader: Any
 
@@ -52,6 +53,7 @@ class AgentSession:
         self.session_manager = config.session_manager
         self.settings_manager = config.settings_manager
         self.cwd = config.cwd
+        self.session_dir = str(Path(config.session_dir).resolve()) if config.session_dir is not None else None
         self.model_registry = config.model_registry
         self.resource_loader = config.resource_loader
         self._listeners: list[Callable[[Any], None]] = []
@@ -149,12 +151,21 @@ class AgentSession:
     async def bash(self, command: str) -> dict[str, Any]:
         for tool in self.agent.state.tools:
             if tool.name == "bash":
-                result = await tool.execute("bash", {"command": command}, asyncio.Event(), None)
+                exit_code = 0
+                try:
+                    result = await tool.execute("bash", {"command": command}, asyncio.Event(), None)
+                    output = "".join(
+                        block.text for block in result.content if hasattr(block, "text")
+                    )
+                except ValueError as exc:
+                    # bash tool raises ValueError with output on non-zero exit code
+                    output = str(exc)
+                    exit_code = 1
                 message = {
                     "role": "bashExecution",
                     "command": command,
-                    "output": "".join(block.text for block in result.content),
-                    "exitCode": 0,
+                    "output": output,
+                    "exitCode": exit_code,
                     "cancelled": False,
                     "timestamp": 0,
                 }
@@ -169,7 +180,11 @@ class AgentSession:
             self.session_manager = SessionManager.in_memory(self.cwd)
             return
 
-        session_root = current_file.parent.parent
+        session_root = self.session_dir or infer_session_dir(current_file)
+        if session_root is None:
+            self.session_manager = SessionManager.create(self.cwd)
+            self.session_dir = infer_session_dir(self.session_manager.get_session_file() or "")
+            return
         self.session_manager = SessionManager.create(self.cwd, session_root)
 
     def _apply_model(self, provider: str, model_id: str) -> None:
@@ -184,15 +199,19 @@ class AgentSession:
         models = self.model_registry.list_models()
         if not models:
             raise ValueError("No models available")
-        current_index = next(
-            (
-                index
-                for index, model in enumerate(models)
-                if model.provider == self.model.provider and model.id == self.model.id
-            ),
-            -1,
-        )
-        next_model = models[(current_index + 1) % len(models)]
+        current_model = self.model
+        if current_model is None:
+            next_model = models[0]
+        else:
+            current_index = next(
+                (
+                    index
+                    for index, model in enumerate(models)
+                    if model.provider == current_model.provider and model.id == current_model.id
+                ),
+                -1,
+            )
+            next_model = models[(current_index + 1) % len(models)]
         await self.set_model(next_model.provider, next_model.id)
         return self.model
 
@@ -1126,6 +1145,9 @@ class AgentSession:
     async def switch_session(self, session_path: str) -> bool:
         manager = SessionManager.open(session_path)
         self.session_manager = manager
+        inferred_session_dir = infer_session_dir(session_path)
+        if inferred_session_dir is not None:
+            self.session_dir = inferred_session_dir
         self.agent.reset()
         self._restore_messages_from_current_branch()
         return True
@@ -1147,7 +1169,7 @@ class AgentSession:
                     return current_file
                 if normalized_query and normalized_query in current_info.first_message.lower():
                     return current_file
-        return str(SessionManager.resolve_session(self.cwd, query))
+        return str(SessionManager.resolve_session(self.cwd, query, self.session_dir))
 
     async def resolve_and_switch_session(self, query: str) -> str:
         session_path = self.resolve_session(query)
@@ -1158,7 +1180,7 @@ class AgentSession:
         return self.session_manager.get_user_messages_for_forking()
 
     async def fork(self, entry_id: str) -> dict[str, Any]:
-        new_manager, selected_text = self.session_manager.fork_to_new_manager(entry_id)
+        new_manager, selected_text = self.session_manager.fork_to_new_manager(entry_id, self.session_dir)
         self.session_manager = new_manager
         self._restore_messages_from_current_branch()
         return {"selectedText": selected_text, "cancelled": False}
@@ -1239,11 +1261,15 @@ class AgentSession:
     def get_last_assistant_text(self) -> str | None:
         return self.session_manager.get_last_assistant_text()
 
+    def find_most_recent_session(self) -> str | None:
+        path = SessionManager.find_most_recent_session(self.cwd, self.session_dir)
+        return None if path is None else str(path)
+
     def list_sessions(self) -> list[str]:
-        return [str(path) for path in SessionManager.list_sessions(self.cwd)]
+        return [str(path) for path in SessionManager.list_sessions(self.cwd, self.session_dir)]
 
     def list_session_infos(self) -> list[SessionInfo]:
-        return SessionManager.list_session_infos(self.cwd)
+        return SessionManager.list_session_infos(self.cwd, self.session_dir)
 
     def get_session_selector_schema(self) -> dict[str, Any]:
         current_file = self.session_file

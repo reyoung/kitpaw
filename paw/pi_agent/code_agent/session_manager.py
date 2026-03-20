@@ -14,6 +14,14 @@ from .messages import create_branch_summary_message, create_compaction_summary_m
 from .types import SessionHeader, SessionInfo
 
 
+def infer_session_dir(session_file: str | Path) -> str | None:
+    path = Path(session_file).resolve()
+    parent = path.parent
+    if parent.name.startswith("--") and parent.name.endswith("--"):
+        return str(parent.parent)
+    return None
+
+
 def _now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
@@ -243,7 +251,10 @@ class SessionManager:
     @classmethod
     def open(cls, session_file: str | Path) -> "SessionManager":
         path = Path(session_file).resolve()
-        header = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
+        lines = path.read_text(encoding="utf-8").splitlines()
+        if not lines:
+            raise ValueError(f"Session file is empty: {path}")
+        header = json.loads(lines[0])
         return cls(header["cwd"], path)
 
     @classmethod
@@ -385,7 +396,12 @@ class SessionManager:
     def _load_existing(self) -> None:
         lines = self.session_file.read_text(encoding="utf-8").splitlines()
         for index, line in enumerate(lines):
-            entry = json.loads(line)
+            if not line.strip():
+                continue
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
             if index == 0 and entry.get("type") == "session":
                 self.session_id = entry["id"]
                 continue
@@ -393,7 +409,7 @@ class SessionManager:
             if entry.get("type") == "session_info":
                 self.session_name = entry.get("name") or None
         if self.entries:
-            self.leaf_id = self.entries[-1]["id"]
+            self.leaf_id = self.entries[-1].get("id")
 
     def _ensure_header(self) -> None:
         if self.session_file is None or self.session_file.exists():

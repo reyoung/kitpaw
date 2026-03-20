@@ -6,14 +6,11 @@ from pathlib import Path
 from typing import Any
 
 from .config import (
-    get_extensions_dir,
     get_project_agents_path,
     get_project_extensions_dir,
     get_project_prompts_dir,
     get_project_skills_dir,
     get_project_themes_dir,
-    get_skills_dir,
-    get_themes_dir,
 )
 from .types import (
     LoadedAgentsFiles,
@@ -84,7 +81,7 @@ class DefaultResourceLoader:
         return LoadedAgentsFiles(agents_files=files)
 
     def _iter_skill_files(self) -> list[Path]:
-        paths = [get_skills_dir(), get_project_skills_dir(self.cwd)]
+        paths = [self.agent_dir / "skills", get_project_skills_dir(self.cwd)]
         skill_files: list[Path] = []
         for root in paths:
             if not root.exists():
@@ -98,17 +95,23 @@ class DefaultResourceLoader:
         diagnostics: list[ResourceDiagnostic] = []
         seen: set[str] = set()
         for path in self._iter_skill_files():
-            text = path.read_text(encoding="utf-8")
+            try:
+                text = path.read_text(encoding="utf-8")
+            except OSError as exc:
+                diagnostics.append(ResourceDiagnostic(type="error", message=f"Cannot read skill file {path}: {exc}"))
+                continue
             name = path.parent.name if path.name == "SKILL.md" else path.stem
             description = ""
             if text.startswith("---"):
-                _, frontmatter, body = text.split("---", 2)
-                for line in frontmatter.splitlines():
-                    if line.startswith("name:"):
-                        name = line.split(":", 1)[1].strip()
-                    if line.startswith("description:"):
-                        description = line.split(":", 1)[1].strip()
-                text = body
+                parts = text.split("---", 2)
+                if len(parts) >= 3:
+                    frontmatter, body = parts[1], parts[2]
+                    for line in frontmatter.splitlines():
+                        if line.startswith("name:"):
+                            name = line.split(":", 1)[1].strip()
+                        if line.startswith("description:"):
+                            description = line.split(":", 1)[1].strip()
+                    text = body
             if not description:
                 diagnostics.append(ResourceDiagnostic(type="warning", message=f"Skill {path} missing description"))
                 continue
@@ -139,7 +142,7 @@ class DefaultResourceLoader:
     def _load_themes(self) -> LoadedThemes:
         themes: list[ThemeResource] = []
         diagnostics: list[ResourceDiagnostic] = []
-        for root in (get_project_themes_dir(self.cwd), get_themes_dir()):
+        for root in (get_project_themes_dir(self.cwd), self.agent_dir / "themes"):
             if not root.exists():
                 continue
             for path in root.glob("*.json"):
@@ -152,7 +155,7 @@ class DefaultResourceLoader:
     def _load_extensions(self) -> LoadedExtensions:
         modules: list[Any] = []
         errors: list[str] = []
-        for root in (get_project_extensions_dir(self.cwd), get_extensions_dir()):
+        for root in (get_project_extensions_dir(self.cwd), self.agent_dir / "extensions"):
             if not root.exists():
                 continue
             for path in list(root.glob("*.py")) + list(root.glob("*/__init__.py")):

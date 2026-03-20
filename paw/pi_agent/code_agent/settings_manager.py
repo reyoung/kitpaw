@@ -30,6 +30,7 @@ class SettingsManager:
         self.agent_dir = agent_dir
         self.global_path = get_settings_path() if agent_dir == get_settings_path().parent else agent_dir / "settings.json"
         self.project_path = get_project_settings_path(cwd)
+        self._project_overrides: dict[str, Any] = self._load_json(self.project_path)
         self._settings = self._load()
 
     @classmethod
@@ -42,7 +43,10 @@ class SettingsManager:
         text = path.read_text(encoding="utf-8").strip()
         if not text:
             return {}
-        return json.loads(text)
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            return {}
 
     def _from_dict(self, data: dict[str, Any]) -> Settings:
         retry_data = data.get("retry", {})
@@ -139,7 +143,7 @@ class SettingsManager:
 
     def save_project_settings(self) -> None:
         self.project_path.parent.mkdir(parents=True, exist_ok=True)
-        self.project_path.write_text(json.dumps(self._to_dict(), indent=2), encoding="utf-8")
+        self.project_path.write_text(json.dumps(self._project_overrides, indent=2), encoding="utf-8")
 
     def get_settings(self) -> Settings:
         return self._settings
@@ -158,6 +162,7 @@ class SettingsManager:
 
     def set_theme(self, theme: str) -> None:
         self._settings.theme = theme
+        self._project_overrides["theme"] = theme
         self.save_project_settings()
 
     def get_quiet_startup(self) -> bool:
@@ -165,6 +170,7 @@ class SettingsManager:
 
     def set_quiet_startup(self, enabled: bool) -> None:
         self._settings.quiet_startup = enabled
+        self._project_overrides["quietStartup"] = enabled
         self.save_project_settings()
 
     def get_steering_mode(self):
@@ -172,6 +178,7 @@ class SettingsManager:
 
     def set_steering_mode(self, mode: str) -> None:
         self._settings.steering_mode = mode
+        self._project_overrides["steeringMode"] = mode
         self.save_project_settings()
 
     def get_follow_up_mode(self):
@@ -179,6 +186,7 @@ class SettingsManager:
 
     def set_follow_up_mode(self, mode: str) -> None:
         self._settings.follow_up_mode = mode
+        self._project_overrides["followUpMode"] = mode
         self.save_project_settings()
 
     def get_transport(self):
@@ -186,6 +194,7 @@ class SettingsManager:
 
     def set_transport(self, transport: str) -> None:
         self._settings.transport = transport
+        self._project_overrides["transport"] = transport
         self.save_project_settings()
 
     def get_shell_command_prefix(self) -> str | None:
@@ -196,40 +205,50 @@ class SettingsManager:
 
     def set_block_images(self, enabled: bool) -> None:
         self._settings.images.block_images = enabled
+        self._project_overrides.setdefault("images", {})["blockImages"] = enabled
         self.save_project_settings()
 
     def set_show_images(self, enabled: bool) -> None:
         self._settings.terminal.show_images = enabled
+        self._project_overrides.setdefault("terminal", {})["showImages"] = enabled
         self.save_project_settings()
 
     def set_enable_skill_commands(self, enabled: bool) -> None:
         self._settings.enable_skill_commands = enabled
+        self._project_overrides["enableSkillCommands"] = enabled
         self.save_project_settings()
 
     def set_retry_enabled(self, enabled: bool) -> None:
         self._settings.retry.enabled = enabled
+        self._project_overrides.setdefault("retry", {})["enabled"] = enabled
         self.save_project_settings()
 
     def set_retry_max_retries(self, max_retries: int) -> None:
         self._settings.retry.max_retries = max_retries
+        self._project_overrides.setdefault("retry", {})["maxRetries"] = max_retries
         self.save_project_settings()
 
     def set_retry_base_delay_ms(self, base_delay_ms: int) -> None:
         self._settings.retry.base_delay_ms = base_delay_ms
+        self._project_overrides.setdefault("retry", {})["baseDelayMs"] = base_delay_ms
         self.save_project_settings()
 
     def set_retry_max_delay_ms(self, max_delay_ms: int) -> None:
         self._settings.retry.max_delay_ms = max_delay_ms
+        self._project_overrides.setdefault("retry", {})["maxDelayMs"] = max_delay_ms
         self.save_project_settings()
 
     def set_compaction_enabled(self, enabled: bool) -> None:
         self._settings.compaction.enabled = enabled
+        self._project_overrides.setdefault("compaction", {})["enabled"] = enabled
         self.save_project_settings()
 
     def set_compaction_reserve_tokens(self, reserve_tokens: int) -> None:
         self._settings.compaction.reserve_tokens = reserve_tokens
+        self._project_overrides.setdefault("compaction", {})["reserveTokens"] = reserve_tokens
         self.save_project_settings()
 
     def set_compaction_keep_recent_tokens(self, keep_recent_tokens: int) -> None:
         self._settings.compaction.keep_recent_tokens = keep_recent_tokens
+        self._project_overrides.setdefault("compaction", {})["keepRecentTokens"] = keep_recent_tokens
         self.save_project_settings()

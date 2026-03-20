@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
 from dataclasses import asdict, is_dataclass
 from typing import Any
 
 from ..agent_session import AgentSession
+from ..types import PromptOptions
 
 
 def _encode(value: Any) -> Any:
@@ -24,18 +26,33 @@ async def run_rpc_mode(session: AgentSession) -> int:
         sys.stdout.flush()
 
     unsubscribe = session.subscribe(emit)
+    loop = asyncio.get_event_loop()
     try:
-        for line in sys.stdin:
+        while True:
+            line = await loop.run_in_executor(None, sys.stdin.readline)
+            if not line:
+                break
             if not line.strip():
                 continue
-            command = json.loads(line)
+            try:
+                command = json.loads(line)
+            except json.JSONDecodeError as exc:
+                sys.stdout.write(
+                    json.dumps({"type": "response", "id": None, "command": None, "success": False, "error": f"Invalid JSON: {exc}"})
+                    + "\n"
+                )
+                sys.stdout.flush()
+                continue
             command_type = command.get("type")
             command_id = command.get("id")
             try:
                 if command_type == "prompt":
+                    options = None
+                    if command.get("streamingBehavior") is not None:
+                        options = PromptOptions(streaming_behavior=command.get("streamingBehavior"))
                     await session.prompt(
                         command["message"],
-                        {"streaming_behavior": command.get("streamingBehavior")} if command.get("streamingBehavior") else None,
+                        options,
                     )
                     payload: Any = {}
                 elif command_type == "steer":

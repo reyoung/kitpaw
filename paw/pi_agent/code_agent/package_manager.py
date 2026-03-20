@@ -20,19 +20,26 @@ class PackageManager:
         self.cwd = Path(cwd).resolve()
         self.agent_dir = Path(agent_dir).resolve()
         self.settings_manager = settings_manager
-        self.packages_dir = self.agent_dir / "packages"
-        self.packages_dir.mkdir(parents=True, exist_ok=True)
 
     def _manifest_path(self, scope: str) -> Path:
         base = self.agent_dir if scope == "user" else self.cwd / ".pi"
         base.mkdir(parents=True, exist_ok=True)
         return base / "packages.json"
 
+    def _packages_dir(self, scope: str) -> Path:
+        base = self.agent_dir if scope == "user" else self.cwd / ".pi"
+        path = base / "packages"
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
     def _read_manifest(self, scope: str) -> list[dict[str, str]]:
         path = self._manifest_path(scope)
         if not path.exists():
             return []
-        return json.loads(path.read_text(encoding="utf-8"))
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return []
 
     def _write_manifest(self, scope: str, entries: list[dict[str, str]]) -> None:
         path = self._manifest_path(scope)
@@ -56,7 +63,7 @@ class PackageManager:
 
     def install(self, source: str, local: bool = False) -> str:
         scope = "project" if local else "user"
-        target = self.packages_dir / self._key_for_source(source)
+        target = self._packages_dir(scope) / self._key_for_source(source)
         if target.exists():
             shutil.rmtree(target)
         if source.startswith("git:"):
