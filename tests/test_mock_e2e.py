@@ -9,7 +9,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import httpx
 import pytest
 
-from paw.pi_agent.ai import (
+from kitpaw.pi_agent.ai import (
     Context,
     TextContent,
     Tool,
@@ -19,8 +19,8 @@ from paw.pi_agent.ai import (
     get_model,
     stream,
 )
-from paw.pi_agent.ai.providers.openai_completions import create_client
-from paw.pi_agent.ai.types import StreamOptions
+from kitpaw.pi_agent.ai.providers.openai_completions import create_client
+from kitpaw.pi_agent.ai.types import StreamOptions
 
 
 def make_chunk(*, delta: dict, finish_reason: str | None = None, usage: dict | None = None) -> dict:

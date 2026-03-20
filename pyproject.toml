@@ -3,7 +3,7 @@ requires = ["hatchling>=1.27.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "paw"
+name = "kitpaw"
 version = "0.1.0"
 description = "Python implementation of paw agents and AI integrations"
 readme = "README.md"
@@ -16,7 +16,8 @@ dependencies = [
 ]
 
 [project.scripts]
-pi = "paw.pi_agent.code_agent.main:main"
+pi = "kitpaw.pi_agent.code_agent.main:main"
+kitpaw = "kitpaw.pi_agent.code_agent.main:main"
 
 [dependency-groups]
 dev = [

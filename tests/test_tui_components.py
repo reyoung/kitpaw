@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from paw.pi_agent.tui import (
+from kitpaw.pi_agent.tui import (
     CURSOR_MARKER,
     TUI,
     AutocompleteItem,
@@ -3995,7 +3995,7 @@ def test_editor_paste_file_path_inserts_leading_space_after_word_character() -> 
 
 def test_combined_autocomplete_provider_chains_command_and_argument_completion() -> None:
     """chains into argument completions after tab-completing slash command names"""
-    from paw.pi_agent.tui import CombinedAutocompleteProvider, SlashCommand
+    from kitpaw.pi_agent.tui import CombinedAutocompleteProvider, SlashCommand
 
     provider = CombinedAutocompleteProvider(
         [
@@ -4025,7 +4025,7 @@ def test_combined_autocomplete_provider_chains_command_and_argument_completion()
 
 def test_editor_does_not_show_argument_completions_when_command_has_no_argument_completer() -> None:
     """does not show argument completions when command has no argument completer"""
-    from paw.pi_agent.tui import CombinedAutocompleteProvider, SlashCommand
+    from kitpaw.pi_agent.tui import CombinedAutocompleteProvider, SlashCommand
 
     provider = CombinedAutocompleteProvider(
         [
@@ -4052,7 +4052,7 @@ def test_editor_does_not_show_argument_completions_when_command_has_no_argument_
 
 
 def test_combined_autocomplete_provider_applies_slash_command_with_trailing_space() -> None:
-    from paw.pi_agent.tui import CombinedAutocompleteProvider, SlashCommand
+    from kitpaw.pi_agent.tui import CombinedAutocompleteProvider, SlashCommand
 
     provider = CombinedAutocompleteProvider([SlashCommand(value="model", label="model", description="Switch model")])
     result = provider.get_suggestions(["/mo"], 0, 3)
@@ -4064,7 +4064,7 @@ def test_combined_autocomplete_provider_applies_slash_command_with_trailing_spac
 
 
 def test_combined_autocomplete_provider_delegates_force_file_suggestions() -> None:
-    from paw.pi_agent.tui import CombinedAutocompleteProvider
+    from kitpaw.pi_agent.tui import CombinedAutocompleteProvider
 
     class _Provider:
         def get_suggestions(self, lines, cursor_line, cursor_col):  # noqa: ANN001
@@ -4098,7 +4098,7 @@ def test_combined_autocomplete_provider_extracts_force_file_prefixes_like_ts() -
     does not trigger for slash commands
     triggers for absolute paths after slash command argument
     """
-    from paw.pi_agent.tui import CombinedAutocompleteProvider
+    from kitpaw.pi_agent.tui import CombinedAutocompleteProvider
 
     provider = CombinedAutocompleteProvider([], "/tmp")
 
@@ -4119,7 +4119,7 @@ def test_combined_autocomplete_provider_extracts_force_file_prefixes_like_ts() -
 
 
 def test_combined_autocomplete_provider_preserves_dot_slash_and_quoted_path_completion() -> None:
-    from paw.pi_agent.tui import CombinedAutocompleteProvider
+    from kitpaw.pi_agent.tui import CombinedAutocompleteProvider
 
     with tempfile.TemporaryDirectory() as tmpdir:
         with open(os.path.join(tmpdir, "update.sh"), "w", encoding="utf-8") as handle:
@@ -4155,7 +4155,7 @@ def test_combined_autocomplete_provider_preserves_dot_slash_and_quoted_path_comp
 
 
 def test_combined_autocomplete_provider_supports_basic_at_file_suggestions() -> None:
-    from paw.pi_agent.tui import CombinedAutocompleteProvider
+    from kitpaw.pi_agent.tui import CombinedAutocompleteProvider
 
     with tempfile.TemporaryDirectory() as tmpdir:
         os.mkdir(os.path.join(tmpdir, "src"))
@@ -4204,7 +4204,7 @@ def test_combined_autocomplete_provider_supports_basic_at_file_suggestions() -> 
 
 
 def test_combined_autocomplete_provider_supports_quoted_at_path_continuation() -> None:
-    from paw.pi_agent.tui import CombinedAutocompleteProvider
+    from kitpaw.pi_agent.tui import CombinedAutocompleteProvider
 
     with tempfile.TemporaryDirectory() as tmpdir:
         os.mkdir(os.path.join(tmpdir, "my folder"))
@@ -4232,7 +4232,7 @@ def test_combined_autocomplete_provider_supports_quoted_at_path_continuation() -
 
 
 def test_combined_autocomplete_provider_supports_direct_quoted_path_continuation() -> None:
-    from paw.pi_agent.tui import CombinedAutocompleteProvider
+    from kitpaw.pi_agent.tui import CombinedAutocompleteProvider
 
     with tempfile.TemporaryDirectory() as tmpdir:
         os.mkdir(os.path.join(tmpdir, "my folder"))
@@ -4260,7 +4260,7 @@ def test_combined_autocomplete_provider_supports_direct_quoted_path_continuation
 
 
 def test_combined_autocomplete_provider_supports_nested_and_scoped_at_search() -> None:
-    from paw.pi_agent.tui import CombinedAutocompleteProvider
+    from kitpaw.pi_agent.tui import CombinedAutocompleteProvider
 
     with tempfile.TemporaryDirectory() as rootdir:
         base_dir = os.path.join(rootdir, "cwd")
@@ -10742,7 +10742,7 @@ def test_tui_parses_cell_size_response_updates_dimensions_and_invalidates(monkey
     tui = TUI(terminal)
     body = _InvalidateTrackingComponent(["body"])
 
-    monkeypatch.setattr("paw.pi_agent.tui.tui.get_capabilities", lambda: type("Caps", (), {"images": "kitty"})())
+    monkeypatch.setattr("kitpaw.pi_agent.tui.tui.get_capabilities", lambda: type("Caps", (), {"images": "kitty"})())
     previous_dims = get_cell_dimensions()
     set_cell_dimensions(CellDimensions(width_px=9, height_px=18))
 
@@ -10767,7 +10767,7 @@ def test_tui_filters_cell_size_response_and_forwards_remaining_input(monkeypatch
     tui = TUI(terminal)
     body = _InvalidateTrackingComponent(["body"])
 
-    monkeypatch.setattr("paw.pi_agent.tui.tui.get_capabilities", lambda: type("Caps", (), {"images": "kitty"})())
+    monkeypatch.setattr("kitpaw.pi_agent.tui.tui.get_capabilities", lambda: type("Caps", (), {"images": "kitty"})())
     previous_dims = get_cell_dimensions()
     set_cell_dimensions(CellDimensions(width_px=9, height_px=18))
 

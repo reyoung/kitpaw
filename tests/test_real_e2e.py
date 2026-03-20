@@ -4,8 +4,8 @@ import os
 
 import pytest
 
-from paw.pi_agent.ai import Context, TextContent, UserMessage, complete, get_model
-from paw.pi_agent.ai.local_env import load_local_env
+from kitpaw.pi_agent.ai import Context, TextContent, UserMessage, complete, get_model
+from kitpaw.pi_agent.ai.local_env import load_local_env
 
 pytestmark = [pytest.mark.e2e, pytest.mark.real_e2e]
 

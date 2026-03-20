@@ -23,7 +23,7 @@ def test_code_agent_package_install_list_remove(tmp_path: Path) -> None:
     root = str(Path(__file__).resolve().parent.parent)
 
     install = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "install", str(source)],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "install", str(source)],
         cwd=root,
         env=env,
         capture_output=True,
@@ -34,7 +34,7 @@ def test_code_agent_package_install_list_remove(tmp_path: Path) -> None:
     assert "Installed" in install.stdout
 
     listed = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "list"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "list"],
         cwd=root,
         env=env,
         capture_output=True,
@@ -45,7 +45,7 @@ def test_code_agent_package_install_list_remove(tmp_path: Path) -> None:
     assert str(source) in listed.stdout
 
     removed = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "remove", str(source)],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "remove", str(source)],
         cwd=root,
         env=env,
         capture_output=True,
@@ -60,7 +60,7 @@ def test_code_agent_list_shows_empty_when_no_packages(tmp_path: Path) -> None:
     env = _base_env(tmp_path)
     root = str(Path(__file__).resolve().parent.parent)
     result = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "list"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "list"],
         cwd=root,
         env=env,
         capture_output=True,
@@ -82,7 +82,7 @@ def test_code_agent_export_html_from_session_file(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     result = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--export", str(session)],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--export", str(session)],
         cwd=root,
         env=env,
         capture_output=True,
@@ -109,7 +109,7 @@ def test_code_agent_export_html_includes_session_info_and_summaries(tmp_path: Pa
         encoding="utf-8",
     )
     result = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--export", str(session)],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--export", str(session)],
         cwd=root,
         env=env,
         capture_output=True,
@@ -125,8 +125,8 @@ def test_code_agent_export_html_includes_session_info_and_summaries(tmp_path: Pa
 
 
 def test_code_agent_session_flag_accepts_query(tmp_path: Path) -> None:
-    from paw.pi_agent.ai import UserMessage
-    from paw.pi_agent.code_agent.session_manager import SessionManager
+    from kitpaw.pi_agent.ai import UserMessage
+    from kitpaw.pi_agent.code_agent.session_manager import SessionManager
 
     env = _base_env(tmp_path)
     root = str(Path(__file__).resolve().parent.parent)
@@ -135,7 +135,7 @@ def test_code_agent_session_flag_accepts_query(tmp_path: Path) -> None:
     manager.set_session_name("alpha")
 
     result = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--session", "alpha"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--session", "alpha"],
         cwd=root,
         env={**env, "OPENAI_API_KEY": "test-key", "OPENAI_MODEL": "gpt-4o-mini"},
         input="/session\n/quit\n",
@@ -148,8 +148,8 @@ def test_code_agent_session_flag_accepts_query(tmp_path: Path) -> None:
 
 
 def test_code_agent_resume_flag_accepts_query(tmp_path: Path) -> None:
-    from paw.pi_agent.ai import UserMessage
-    from paw.pi_agent.code_agent.session_manager import SessionManager
+    from kitpaw.pi_agent.ai import UserMessage
+    from kitpaw.pi_agent.code_agent.session_manager import SessionManager
 
     env = _base_env(tmp_path)
     root = str(Path(__file__).resolve().parent.parent)
@@ -161,7 +161,7 @@ def test_code_agent_resume_flag_accepts_query(tmp_path: Path) -> None:
     second.set_session_name("beta")
 
     result = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--resume", "beta"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--resume", "beta"],
         cwd=root,
         env={**env, "OPENAI_API_KEY": "test-key", "OPENAI_MODEL": "gpt-4o-mini"},
         input="/session\n/quit\n",
@@ -174,8 +174,8 @@ def test_code_agent_resume_flag_accepts_query(tmp_path: Path) -> None:
 
 
 def test_code_agent_resume_flag_opens_session_picker(tmp_path: Path) -> None:
-    from paw.pi_agent.ai import UserMessage
-    from paw.pi_agent.code_agent.session_manager import SessionManager
+    from kitpaw.pi_agent.ai import UserMessage
+    from kitpaw.pi_agent.code_agent.session_manager import SessionManager
 
     env = _base_env(tmp_path)
     root = str(Path(__file__).resolve().parent.parent)
@@ -187,7 +187,7 @@ def test_code_agent_resume_flag_opens_session_picker(tmp_path: Path) -> None:
     second.set_session_name("beta")
 
     result = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--resume"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--resume"],
         cwd=root,
         env={**env, "OPENAI_API_KEY": "test-key", "OPENAI_MODEL": "gpt-4o-mini"},
         input="beta\n/session\n/quit\n",
@@ -203,8 +203,8 @@ def test_code_agent_resume_flag_opens_session_picker(tmp_path: Path) -> None:
 
 
 def test_code_agent_resume_flag_searches_multiple_matches(tmp_path: Path) -> None:
-    from paw.pi_agent.ai import UserMessage
-    from paw.pi_agent.code_agent.session_manager import SessionManager
+    from kitpaw.pi_agent.ai import UserMessage
+    from kitpaw.pi_agent.code_agent.session_manager import SessionManager
 
     env = _base_env(tmp_path)
     root = str(Path(__file__).resolve().parent.parent)
@@ -216,7 +216,7 @@ def test_code_agent_resume_flag_searches_multiple_matches(tmp_path: Path) -> Non
     newer.set_session_name("beta-new")
 
     result = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--resume", "beta"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--resume", "beta"],
         cwd=root,
         env={**env, "OPENAI_API_KEY": "test-key", "OPENAI_MODEL": "gpt-4o-mini"},
         input="1\n/session\n/quit\n",
@@ -232,8 +232,8 @@ def test_code_agent_resume_flag_searches_multiple_matches(tmp_path: Path) -> Non
 
 
 def test_code_agent_resume_flag_shortens_home_paths(tmp_path: Path) -> None:
-    from paw.pi_agent.ai import UserMessage
-    from paw.pi_agent.code_agent.session_manager import SessionManager
+    from kitpaw.pi_agent.ai import UserMessage
+    from kitpaw.pi_agent.code_agent.session_manager import SessionManager
 
     root = str(Path(__file__).resolve().parent.parent)
     home = tmp_path / "home"
@@ -252,7 +252,7 @@ def test_code_agent_resume_flag_shortens_home_paths(tmp_path: Path) -> None:
     env["OPENAI_MODEL"] = "gpt-4o-mini"
 
     result = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--resume"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--resume"],
         cwd=root,
         env=env,
         input="home-session\n/quit\n",
@@ -266,8 +266,8 @@ def test_code_agent_resume_flag_shortens_home_paths(tmp_path: Path) -> None:
 
 
 def test_code_agent_resume_flag_supports_all_scope(tmp_path: Path) -> None:
-    from paw.pi_agent.ai import UserMessage
-    from paw.pi_agent.code_agent.session_manager import SessionManager
+    from kitpaw.pi_agent.ai import UserMessage
+    from kitpaw.pi_agent.code_agent.session_manager import SessionManager
 
     env = _base_env(tmp_path)
     root = str(Path(__file__).resolve().parent.parent)
@@ -280,7 +280,7 @@ def test_code_agent_resume_flag_supports_all_scope(tmp_path: Path) -> None:
     second.set_session_name("beta")
 
     result = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--resume", "all:beta"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--resume", "all:beta"],
         cwd=root,
         env={**env, "OPENAI_API_KEY": "test-key", "OPENAI_MODEL": "gpt-4o-mini"},
         input="/session\n/quit\n",
@@ -293,8 +293,8 @@ def test_code_agent_resume_flag_supports_all_scope(tmp_path: Path) -> None:
 
 
 def test_code_agent_resume_flag_supports_all_scope_fuzzy_query(tmp_path: Path) -> None:
-    from paw.pi_agent.ai import UserMessage
-    from paw.pi_agent.code_agent.session_manager import SessionManager
+    from kitpaw.pi_agent.ai import UserMessage
+    from kitpaw.pi_agent.code_agent.session_manager import SessionManager
 
     env = _base_env(tmp_path)
     root = str(Path(__file__).resolve().parent.parent)
@@ -307,7 +307,7 @@ def test_code_agent_resume_flag_supports_all_scope_fuzzy_query(tmp_path: Path) -
     second.set_session_name("beta")
 
     result = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--resume", r"all:re:beta\s+tail"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--resume", r"all:re:beta\s+tail"],
         cwd=root,
         env={**env, "OPENAI_API_KEY": "test-key", "OPENAI_MODEL": "gpt-4o-mini"},
         input="/session\n/quit\n",
@@ -320,8 +320,8 @@ def test_code_agent_resume_flag_supports_all_scope_fuzzy_query(tmp_path: Path) -
 
 
 def test_code_agent_resume_flag_shows_scope_title(tmp_path: Path) -> None:
-    from paw.pi_agent.ai import UserMessage
-    from paw.pi_agent.code_agent.session_manager import SessionManager
+    from kitpaw.pi_agent.ai import UserMessage
+    from kitpaw.pi_agent.code_agent.session_manager import SessionManager
 
     env = _base_env(tmp_path)
     root = str(Path(__file__).resolve().parent.parent)
@@ -334,7 +334,7 @@ def test_code_agent_resume_flag_shows_scope_title(tmp_path: Path) -> None:
     other.set_session_name("alpha")
 
     result = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--resume"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--resume"],
         cwd=root,
         env={**env, "OPENAI_API_KEY": "test-key", "OPENAI_MODEL": "gpt-4o-mini"},
         input="alpha\n/session\n/quit\n",
@@ -346,7 +346,7 @@ def test_code_agent_resume_flag_shows_scope_title(tmp_path: Path) -> None:
     assert "Resume Session (Current Folder)" in result.stdout
 
     result_all = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--resume", "all:alpha"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--resume", "all:alpha"],
         cwd=root,
         env={**env, "OPENAI_API_KEY": "test-key", "OPENAI_MODEL": "gpt-4o-mini"},
         input="1\n/session\n/quit\n",
@@ -365,7 +365,7 @@ def test_code_agent_session_dir_flag_controls_new_session_path(tmp_path: Path) -
     session_root = tmp_path / "custom-sessions"
 
     result = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--session-dir", str(session_root)],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--session-dir", str(session_root)],
         cwd=root,
         env={**env, "OPENAI_API_KEY": "test-key", "OPENAI_MODEL": "gpt-4o-mini"},
         input="/session\n/quit\n",
@@ -390,7 +390,7 @@ def test_code_agent_theme_flag_sets_theme(tmp_path: Path) -> None:
     original = settings_path.read_text(encoding="utf-8") if settings_path.exists() else None
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "paw.pi_agent.code_agent", "--theme", "light"],
+            [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--theme", "light"],
             cwd=workdir,
             env={**env, "OPENAI_API_KEY": "test-key", "OPENAI_MODEL": "gpt-4o-mini"},
             input="/theme\n/quit\n",
@@ -420,7 +420,7 @@ def test_code_agent_handles_empty_project_settings_file(tmp_path: Path) -> None:
     settings_path.write_text("", encoding="utf-8")
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "paw.pi_agent.code_agent", "--no-session"],
+            [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--no-session"],
             cwd=root,
             env={**env, "OPENAI_API_KEY": "test-key", "OPENAI_MODEL": "gpt-4o-mini"},
             input="/quit\n",

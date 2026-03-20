@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from paw.pi_agent.code_agent.tools import create_all_tools
+from kitpaw.pi_agent.code_agent.tools import create_all_tools
 
 
 @pytest.mark.anyio

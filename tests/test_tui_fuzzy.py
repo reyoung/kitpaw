@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from paw.pi_agent.tui import fuzzy_filter, fuzzy_match
+from kitpaw.pi_agent.tui import fuzzy_filter, fuzzy_match
 
 
 def test_fuzzy_match_empty_query_matches_everything() -> None:

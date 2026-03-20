@@ -16,7 +16,7 @@ def test_import_paw_pi_agent_does_not_eagerly_import_tui() -> None:
             "-c",
             (
                 "import sys; "
-                "import paw.pi_agent; "
+                "import kitpaw.pi_agent; "
                 "raise SystemExit(0 if 'paw.pi_agent.tui' not in sys.modules else 1)"
             ),
         ],

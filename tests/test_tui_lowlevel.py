@@ -8,7 +8,7 @@ from collections.abc import Callable
 
 import pytest
 
-from paw.pi_agent.tui import (
+from kitpaw.pi_agent.tui import (
     ImageDimensions,
     KillRing,
     ProcessTerminal,
@@ -32,7 +32,7 @@ from paw.pi_agent.tui import (
     reset_capabilities_cache,
     set_kitty_protocol_active,
 )
-from paw.pi_agent.tui.terminal_image import is_image_line
+from kitpaw.pi_agent.tui.terminal_image import is_image_line
 
 
 def test_kill_ring_push_peek_and_rotate() -> None:
@@ -916,11 +916,11 @@ def test_process_terminal_detects_kitty_response_and_forwards_other_input(monkey
     inputs: list[str] = []
     resizes: list[str] = []
 
-    monkeypatch.setattr("paw.pi_agent.tui.terminal.sys.stdin", stdin)
-    monkeypatch.setattr("paw.pi_agent.tui.terminal.sys.stdout", stdout)
-    monkeypatch.setattr("paw.pi_agent.tui.terminal.tty.setraw", lambda _fd: None)
-    monkeypatch.setattr("paw.pi_agent.tui.terminal.termios.tcgetattr", lambda _fd: [1])
-    monkeypatch.setattr("paw.pi_agent.tui.terminal.os.kill", lambda _pid, _sig: None)
+    monkeypatch.setattr("kitpaw.pi_agent.tui.terminal.sys.stdin", stdin)
+    monkeypatch.setattr("kitpaw.pi_agent.tui.terminal.sys.stdout", stdout)
+    monkeypatch.setattr("kitpaw.pi_agent.tui.terminal.tty.setraw", lambda _fd: None)
+    monkeypatch.setattr("kitpaw.pi_agent.tui.terminal.termios.tcgetattr", lambda _fd: [1])
+    monkeypatch.setattr("kitpaw.pi_agent.tui.terminal.os.kill", lambda _pid, _sig: None)
 
     terminal = ProcessTerminal()
     terminal._kitty_query_timeout_s = 1.0  # type: ignore[attr-defined]
@@ -948,11 +948,11 @@ def test_process_terminal_drain_input_disables_modes(monkeypatch: pytest.MonkeyP
     stdin = _FakeStdin()
     stdout = _FakeStdout()
 
-    monkeypatch.setattr("paw.pi_agent.tui.terminal.sys.stdin", stdin)
-    monkeypatch.setattr("paw.pi_agent.tui.terminal.sys.stdout", stdout)
-    monkeypatch.setattr("paw.pi_agent.tui.terminal.tty.setraw", lambda _fd: None)
-    monkeypatch.setattr("paw.pi_agent.tui.terminal.termios.tcgetattr", lambda _fd: [1])
-    monkeypatch.setattr("paw.pi_agent.tui.terminal.os.kill", lambda _pid, _sig: None)
+    monkeypatch.setattr("kitpaw.pi_agent.tui.terminal.sys.stdin", stdin)
+    monkeypatch.setattr("kitpaw.pi_agent.tui.terminal.sys.stdout", stdout)
+    monkeypatch.setattr("kitpaw.pi_agent.tui.terminal.tty.setraw", lambda _fd: None)
+    monkeypatch.setattr("kitpaw.pi_agent.tui.terminal.termios.tcgetattr", lambda _fd: [1])
+    monkeypatch.setattr("kitpaw.pi_agent.tui.terminal.os.kill", lambda _pid, _sig: None)
 
     terminal = ProcessTerminal()
     terminal._kitty_query_timeout_s = 1.0  # type: ignore[attr-defined]
@@ -973,11 +973,11 @@ def test_process_terminal_falls_back_to_modify_other_keys(monkeypatch: pytest.Mo
     stdin = _FakeStdin()
     stdout = _FakeStdout()
 
-    monkeypatch.setattr("paw.pi_agent.tui.terminal.sys.stdin", stdin)
-    monkeypatch.setattr("paw.pi_agent.tui.terminal.sys.stdout", stdout)
-    monkeypatch.setattr("paw.pi_agent.tui.terminal.tty.setraw", lambda _fd: None)
-    monkeypatch.setattr("paw.pi_agent.tui.terminal.termios.tcgetattr", lambda _fd: [1])
-    monkeypatch.setattr("paw.pi_agent.tui.terminal.os.kill", lambda _pid, _sig: None)
+    monkeypatch.setattr("kitpaw.pi_agent.tui.terminal.sys.stdin", stdin)
+    monkeypatch.setattr("kitpaw.pi_agent.tui.terminal.sys.stdout", stdout)
+    monkeypatch.setattr("kitpaw.pi_agent.tui.terminal.tty.setraw", lambda _fd: None)
+    monkeypatch.setattr("kitpaw.pi_agent.tui.terminal.termios.tcgetattr", lambda _fd: [1])
+    monkeypatch.setattr("kitpaw.pi_agent.tui.terminal.os.kill", lambda _pid, _sig: None)
 
     terminal = ProcessTerminal()
     terminal._kitty_query_timeout_s = 0.01  # type: ignore[attr-defined]
@@ -995,11 +995,11 @@ def test_process_terminal_stop_cleans_up_handlers_and_restores_state(monkeypatch
     stdout = _FakeStdout()
     raw_modes: list[bool] = []
 
-    monkeypatch.setattr("paw.pi_agent.tui.terminal.sys.stdin", stdin)
-    monkeypatch.setattr("paw.pi_agent.tui.terminal.sys.stdout", stdout)
-    monkeypatch.setattr("paw.pi_agent.tui.terminal.tty.setraw", lambda _fd: None)
-    monkeypatch.setattr("paw.pi_agent.tui.terminal.termios.tcgetattr", lambda _fd: [1])
-    monkeypatch.setattr("paw.pi_agent.tui.terminal.os.kill", lambda _pid, _sig: None)
+    monkeypatch.setattr("kitpaw.pi_agent.tui.terminal.sys.stdin", stdin)
+    monkeypatch.setattr("kitpaw.pi_agent.tui.terminal.sys.stdout", stdout)
+    monkeypatch.setattr("kitpaw.pi_agent.tui.terminal.tty.setraw", lambda _fd: None)
+    monkeypatch.setattr("kitpaw.pi_agent.tui.terminal.termios.tcgetattr", lambda _fd: [1])
+    monkeypatch.setattr("kitpaw.pi_agent.tui.terminal.os.kill", lambda _pid, _sig: None)
 
     terminal = ProcessTerminal()
     terminal._set_raw_mode = raw_modes.append  # type: ignore[attr-defined]

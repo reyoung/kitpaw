@@ -3,9 +3,9 @@ from __future__ import annotations
 import asyncio
 import inspect
 
-from paw.pi_agent.agent import Agent
-from paw.pi_agent.agent.types import MessageEndEvent
-from paw.pi_agent.ai.types import AssistantMessage, TextContent, Usage, UserMessage, now_ms
+from kitpaw.pi_agent.agent import Agent
+from kitpaw.pi_agent.agent.types import MessageEndEvent
+from kitpaw.pi_agent.ai.types import AssistantMessage, TextContent, Usage, UserMessage, now_ms
 
 
 def _assistant_message(text: str) -> AssistantMessage:
@@ -43,7 +43,7 @@ def test_continue_skips_trailing_assistant_messages_and_reuses_last_non_assistan
             if inspect.isawaitable(result):
                 await result
 
-        monkeypatch.setattr("paw.pi_agent.agent.agent._run_agent_loop", fake_run_agent_loop)
+        monkeypatch.setattr("kitpaw.pi_agent.agent.agent._run_agent_loop", fake_run_agent_loop)
 
         agent = Agent()
         agent.replace_messages(

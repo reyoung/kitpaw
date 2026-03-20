@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from paw.pi_agent.ai.local_env import load_local_env
+from kitpaw.pi_agent.ai.local_env import load_local_env
 
 pytestmark = [pytest.mark.e2e, pytest.mark.real_e2e]
 
@@ -29,7 +29,7 @@ def test_code_agent_print_real_openai_compatible_smoke() -> None:
         [
             sys.executable,
             "-m",
-            "paw.pi_agent.code_agent",
+            "kitpaw.pi_agent.code_agent",
             "-p",
             "Reply with exactly the word pong.",
         ],

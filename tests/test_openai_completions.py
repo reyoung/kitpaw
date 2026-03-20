@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from paw.pi_agent.ai import (
+from kitpaw.pi_agent.ai import (
     Context,
     ImageContent,
     TextContent,
@@ -12,12 +12,12 @@ from paw.pi_agent.ai import (
     UserMessage,
     get_model,
 )
-from paw.pi_agent.ai.providers.openai_completions import (
+from kitpaw.pi_agent.ai.providers.openai_completions import (
     build_params,
     convert_messages,
     convert_tools,
 )
-from paw.pi_agent.ai.types import (
+from kitpaw.pi_agent.ai.types import (
     AssistantMessage,
     OpenAICompletionsCompat,
     OpenAICompletionsOptions,

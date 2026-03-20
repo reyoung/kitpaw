@@ -25,7 +25,7 @@ def test_code_agent_rpc_get_state(tmp_path: Path) -> None:
     ) as (base_url, _state):
         env["OPENAI_BASE_URL"] = base_url
         process = subprocess.Popen(
-            [sys.executable, "-m", "paw.pi_agent.code_agent", "--mode", "rpc", "--no-session"],
+            [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--mode", "rpc", "--no-session"],
             cwd=str(Path(__file__).resolve().parent.parent),
             env=env,
             stdin=subprocess.PIPE,
@@ -62,7 +62,7 @@ def test_code_agent_rpc_prompt_accepts_streaming_behavior(tmp_path: Path) -> Non
     ) as (base_url, _state):
         env["OPENAI_BASE_URL"] = base_url
         process = subprocess.Popen(
-            [sys.executable, "-m", "paw.pi_agent.code_agent", "--mode", "rpc", "--no-session"],
+            [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--mode", "rpc", "--no-session"],
             cwd=str(Path(__file__).resolve().parent.parent),
             env=env,
             stdin=subprocess.PIPE,
@@ -88,8 +88,8 @@ def test_code_agent_rpc_prompt_accepts_streaming_behavior(tmp_path: Path) -> Non
 
 
 def test_code_agent_rpc_uses_custom_session_dir_for_navigation(tmp_path: Path) -> None:
-    from paw.pi_agent.ai import UserMessage
-    from paw.pi_agent.code_agent.session_manager import SessionManager
+    from kitpaw.pi_agent.ai import UserMessage
+    from kitpaw.pi_agent.code_agent.session_manager import SessionManager
 
     env = os.environ.copy()
     pythonpath = env.get("PYTHONPATH")
@@ -105,7 +105,7 @@ def test_code_agent_rpc_uses_custom_session_dir_for_navigation(tmp_path: Path) -
     session.set_session_name("rpc-demo")
 
     process = subprocess.Popen(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--mode", "rpc", "--session-dir", str(session_root)],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--mode", "rpc", "--session-dir", str(session_root)],
         cwd=root,
         env=env,
         stdin=subprocess.PIPE,
@@ -176,7 +176,7 @@ def test_code_agent_rpc_extended_commands(tmp_path: Path) -> None:
     ) as (base_url, _state):
         env["OPENAI_BASE_URL"] = base_url
         process = subprocess.Popen(
-            [sys.executable, "-m", "paw.pi_agent.code_agent", "--mode", "rpc"],
+            [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--mode", "rpc"],
             cwd=str(Path(__file__).resolve().parent.parent),
             env=env,
             stdin=subprocess.PIPE,

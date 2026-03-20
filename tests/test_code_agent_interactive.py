@@ -17,7 +17,7 @@ def test_code_agent_interactive_session_commands(tmp_path: Path) -> None:
     env["OPENAI_FALLBACK_MODEL"] = "gpt-4o"
 
     process = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--no-session"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--no-session"],
         cwd=root,
         env=env,
         input="/help\n/selectors\n/selector theme\n/selector-item model openai/gpt-4o-mini\n/name demo\n/session\n/settings\n/settings schema\n/model schema\n/model\n/cycle-model\n/thinking schema\n/thinking\n/thinking cycle\n/steering schema\n/steering all\n/followup schema\n/followup all\n/new\n/quit\n",
@@ -80,7 +80,7 @@ def test_code_agent_interactive_compaction_commands(tmp_path: Path) -> None:
     env["OPENAI_MODEL"] = "gpt-4o-mini"
 
     process = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--no-session"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--no-session"],
         cwd=root,
         env=env,
         input="/compaction schema\n/compaction\n/compaction enabled false\n/compaction reserve 123\n/compaction keep 45\n/quit\n",
@@ -111,7 +111,7 @@ def test_code_agent_interactive_theme_commands(tmp_path: Path) -> None:
     (themes_dir / "light.json").write_text('{"name":"light"}', encoding="utf-8")
 
     process = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--no-session"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--no-session"],
         cwd=root,
         env=env,
         input="/theme schema\n/theme\n/theme light\n/quit\n",
@@ -142,7 +142,7 @@ def test_code_agent_interactive_settings_update_commands(tmp_path: Path) -> None
     (themes_dir / "light.json").write_text('{"name":"light"}', encoding="utf-8")
 
     process = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--no-session"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--no-session"],
         cwd=root,
         env=env,
         input="/settings name renamed\n/settings model gpt-4o\n/settings theme light\n/settings quiet true\n/settings block-images true\n/settings show-images false\n/settings skill-commands false\n/settings transport websocket\n/settings retry enabled false\n/settings retry max-retries 7\n/settings retry base-delay-ms 1234\n/settings retry max-delay-ms 9876\n/settings thinking high\n/settings steering all\n/settings followup all\n/settings compaction enabled false\n/quit\n",
@@ -199,7 +199,7 @@ def test_code_agent_interactive_resource_and_package_schema(tmp_path: Path) -> N
     (themes_dir / "light.json").write_text('{"name":"light"}', encoding="utf-8")
 
     process = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--no-session"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--no-session"],
         cwd=root,
         env=env,
         input=f"/resources\n/resources schema\n/resources item skills demo\n/selector-item resources skills:demo\n/packages schema\n/packages item {source}\n/packages\n/packages install {extra}\n/packages\n/packages remove {extra}\n/packages update\n/quit\n",
@@ -223,8 +223,8 @@ def test_code_agent_interactive_resource_and_package_schema(tmp_path: Path) -> N
 
 
 def test_code_agent_interactive_resume_and_fork_listing(tmp_path: Path) -> None:
-    from paw.pi_agent.ai import UserMessage
-    from paw.pi_agent.code_agent.session_manager import SessionManager
+    from kitpaw.pi_agent.ai import UserMessage
+    from kitpaw.pi_agent.code_agent.session_manager import SessionManager
 
     root = str(Path(__file__).resolve().parent.parent)
     session = SessionManager.create(root, tmp_path / "agent" / "sessions")
@@ -237,7 +237,7 @@ def test_code_agent_interactive_resume_and_fork_listing(tmp_path: Path) -> None:
     env["OPENAI_MODEL"] = "gpt-4o-mini"
 
     process = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--no-session"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--no-session"],
         cwd=root,
         env=env,
         input="/resume\n/fork\n/quit\n",
@@ -251,8 +251,8 @@ def test_code_agent_interactive_resume_and_fork_listing(tmp_path: Path) -> None:
 
 
 def test_code_agent_interactive_resume_and_switch_by_query(tmp_path: Path) -> None:
-    from paw.pi_agent.ai import UserMessage
-    from paw.pi_agent.code_agent.session_manager import SessionManager
+    from kitpaw.pi_agent.ai import UserMessage
+    from kitpaw.pi_agent.code_agent.session_manager import SessionManager
 
     root = str(Path(__file__).resolve().parent.parent)
     first = SessionManager.create(root, tmp_path / "agent" / "sessions")
@@ -270,7 +270,7 @@ def test_code_agent_interactive_resume_and_switch_by_query(tmp_path: Path) -> No
     env["OPENAI_MODEL"] = "gpt-4o-mini"
 
     process = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--no-session"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--no-session"],
         cwd=root,
         env=env,
         input="/resume beta\n/switch alpha\n/quit\n",
@@ -284,7 +284,7 @@ def test_code_agent_interactive_resume_and_switch_by_query(tmp_path: Path) -> No
 
 
 def test_code_agent_interactive_fork_by_id_and_last(tmp_path: Path) -> None:
-    from paw.pi_agent.code_agent.session_manager import SessionManager
+    from kitpaw.pi_agent.code_agent.session_manager import SessionManager
 
     root = str(Path(__file__).resolve().parent.parent)
     session = SessionManager.create(root, tmp_path / "agent" / "sessions")
@@ -310,7 +310,7 @@ def test_code_agent_interactive_fork_by_id_and_last(tmp_path: Path) -> None:
     env["OPENAI_MODEL"] = "gpt-4o-mini"
 
     process = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent"],
         cwd=root,
         env=env,
         input=f"/resume\n/last\n/fork {user_entry['id']}\n/quit\n",
@@ -324,8 +324,8 @@ def test_code_agent_interactive_fork_by_id_and_last(tmp_path: Path) -> None:
 
 
 def test_code_agent_interactive_tree_and_branch(tmp_path: Path) -> None:
-    from paw.pi_agent.ai import UserMessage
-    from paw.pi_agent.code_agent.session_manager import SessionManager
+    from kitpaw.pi_agent.ai import UserMessage
+    from kitpaw.pi_agent.code_agent.session_manager import SessionManager
 
     root = str(Path(__file__).resolve().parent.parent)
     session = SessionManager.create(root, tmp_path / "agent" / "sessions")
@@ -340,7 +340,7 @@ def test_code_agent_interactive_tree_and_branch(tmp_path: Path) -> None:
     env["OPENAI_MODEL"] = "gpt-4o-mini"
 
     process = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent"],
         cwd=root,
         env=env,
         input=f"/resume\n/tree schema\n/tree\n/tree {first['id']}\n/tree\n/quit\n",
@@ -356,8 +356,8 @@ def test_code_agent_interactive_tree_and_branch(tmp_path: Path) -> None:
 
 
 def test_code_agent_interactive_branch_summary_and_compact(tmp_path: Path) -> None:
-    from paw.pi_agent.ai import UserMessage
-    from paw.pi_agent.code_agent.session_manager import SessionManager
+    from kitpaw.pi_agent.ai import UserMessage
+    from kitpaw.pi_agent.code_agent.session_manager import SessionManager
 
     root = str(Path(__file__).resolve().parent.parent)
     session = SessionManager.create(root, tmp_path / "agent" / "sessions")
@@ -372,7 +372,7 @@ def test_code_agent_interactive_branch_summary_and_compact(tmp_path: Path) -> No
     env["OPENAI_MODEL"] = "gpt-4o-mini"
 
     process = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent"],
         cwd=root,
         env=env,
         input=f"/resume\n/branch-summary {first['id']} branch summary\n/compact {first['id']} 77 compact summary\n/quit\n",
@@ -386,8 +386,8 @@ def test_code_agent_interactive_branch_summary_and_compact(tmp_path: Path) -> No
 
 
 def test_code_agent_interactive_sessions_and_switch(tmp_path: Path) -> None:
-    from paw.pi_agent.ai import UserMessage
-    from paw.pi_agent.code_agent.session_manager import SessionManager
+    from kitpaw.pi_agent.ai import UserMessage
+    from kitpaw.pi_agent.code_agent.session_manager import SessionManager
 
     root = str(Path(__file__).resolve().parent.parent)
     first = SessionManager.create(root, tmp_path / "agent" / "sessions")
@@ -404,7 +404,7 @@ def test_code_agent_interactive_sessions_and_switch(tmp_path: Path) -> None:
     env["OPENAI_MODEL"] = "gpt-4o-mini"
 
     process = subprocess.run(
-        [sys.executable, "-m", "paw.pi_agent.code_agent", "--no-session"],
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--no-session"],
         cwd=root,
         env=env,
         input=f"/sessions schema\n/sessions\n/switch {session_path}\n/quit\n",

@@ -5,7 +5,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from paw.pi_agent.tui import (
+from kitpaw.pi_agent.tui import (
     Input,
     Markdown,
     OverlayOptions,
@@ -151,7 +151,7 @@ def run_node_reference(scenario: str) -> dict[str, object]:
 
 def render_python_text() -> dict[str, object]:
     terminal = RecordingTerminal()
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     tui = TUI(terminal)
     tui.add_child(Text("hello"))
@@ -161,7 +161,7 @@ def render_python_text() -> dict[str, object]:
 
 def render_python_input() -> dict[str, object]:
     terminal = RecordingTerminal()
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     input_widget = Input()
     input_widget.focused = True
@@ -174,7 +174,7 @@ def render_python_input() -> dict[str, object]:
 
 def render_python_select_list() -> dict[str, object]:
     terminal = RecordingTerminal(columns=80)
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     list_widget = SelectList(
         [
@@ -196,7 +196,7 @@ def render_python_select_list() -> dict[str, object]:
 
 def render_python_overlay() -> dict[str, object]:
     terminal = RecordingTerminal(columns=20, rows=6)
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     tui = TUI(terminal)
     tui.add_child(Text("Line 1\nLine 2\nLine 3"))
@@ -207,7 +207,7 @@ def render_python_overlay() -> dict[str, object]:
 
 def render_python_overlay_top_left() -> dict[str, object]:
     terminal = RecordingTerminal(columns=20, rows=6)
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     tui = TUI(terminal)
     tui.add_child(Text("base"))
@@ -218,7 +218,7 @@ def render_python_overlay_top_left() -> dict[str, object]:
 
 def render_python_overlay_bottom_right() -> dict[str, object]:
     terminal = RecordingTerminal(columns=20, rows=6)
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     tui = TUI(terminal)
     tui.add_child(Text("base"))
@@ -229,7 +229,7 @@ def render_python_overlay_bottom_right() -> dict[str, object]:
 
 def render_python_overlay_visible_rule() -> dict[str, object]:
     terminal = RecordingTerminal(columns=20, rows=6)
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     tui = TUI(terminal)
     tui.add_child(Text("base"))
@@ -243,7 +243,7 @@ def render_python_overlay_visible_rule() -> dict[str, object]:
 
 def render_python_overlay_width_percent_min() -> dict[str, object]:
     terminal = RecordingTerminal(columns=20, rows=6)
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     tui = TUI(terminal)
     tui.add_child(Text("base"))
@@ -257,7 +257,7 @@ def render_python_overlay_width_percent_min() -> dict[str, object]:
 
 def render_python_overlay_short_content() -> dict[str, object]:
     terminal = RecordingTerminal(columns=20, rows=6)
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     tui = TUI(terminal)
     tui.add_child(Text("Line 1\nLine 2\nLine 3"))
@@ -268,7 +268,7 @@ def render_python_overlay_short_content() -> dict[str, object]:
 
 def render_python_overlay_style_reset() -> dict[str, object]:
     terminal = RecordingTerminal(columns=20, rows=6)
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     component = _MutableComponent(["\x1b[3mXXXXXXXXXXXXXXXXXXXX\x1b[23m", "INPUT"])
     tui = TUI(terminal)
@@ -280,7 +280,7 @@ def render_python_overlay_style_reset() -> dict[str, object]:
 
 def render_python_markdown_list() -> dict[str, object]:
     terminal = RecordingTerminal(columns=20, rows=6)
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     tui = TUI(terminal)
     tui.add_child(
@@ -297,7 +297,7 @@ def render_python_markdown_list() -> dict[str, object]:
 
 def render_python_markdown_explicit_link() -> dict[str, object]:
     terminal = RecordingTerminal(columns=20, rows=6)
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     tui = TUI(terminal)
     tui.add_child(
@@ -314,7 +314,7 @@ def render_python_markdown_explicit_link() -> dict[str, object]:
 
 def render_python_markdown_blockquote_wrap() -> dict[str, object]:
     terminal = RecordingTerminal(columns=20, rows=6)
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     tui = TUI(terminal)
     tui.add_child(
@@ -331,7 +331,7 @@ def render_python_markdown_blockquote_wrap() -> dict[str, object]:
 
 def render_python_markdown_table() -> dict[str, object]:
     terminal = RecordingTerminal(columns=20, rows=6)
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     tui = TUI(terminal)
     tui.add_child(
@@ -348,7 +348,7 @@ def render_python_markdown_table() -> dict[str, object]:
 
 def render_python_markdown_code_fence() -> dict[str, object]:
     terminal = RecordingTerminal(columns=20, rows=6)
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     tui = TUI(terminal)
     tui.add_child(
@@ -365,7 +365,7 @@ def render_python_markdown_code_fence() -> dict[str, object]:
 
 def render_python_markdown_style_reset() -> dict[str, object]:
     terminal = RecordingTerminal(columns=20, rows=6)
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     tui = TUI(terminal)
     tui.add_child(
@@ -387,7 +387,7 @@ def render_python_markdown_style_reset() -> dict[str, object]:
 
 def render_python_settings_list() -> dict[str, object]:
     terminal = RecordingTerminal(columns=20, rows=6)
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     tui = TUI(terminal)
     tui.add_child(
@@ -422,7 +422,7 @@ class _ParitySubmenu:
 
 def render_python_settings_list_submenu_open() -> dict[str, object]:
     terminal = RecordingTerminal(columns=20, rows=6)
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     settings = SettingsList(
         [
@@ -462,7 +462,7 @@ class _MutableComponent:
 
 def render_python_tui_middle_line_change() -> dict[str, object]:
     terminal = RecordingTerminal(columns=20, rows=6)
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     component = _MutableComponent(["Header", "Working...", "Footer"])
     tui = TUI(terminal)
@@ -475,7 +475,7 @@ def render_python_tui_middle_line_change() -> dict[str, object]:
 
 def render_python_tui_clear_then_content() -> dict[str, object]:
     terminal = RecordingTerminal(columns=20, rows=6)
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     component = _MutableComponent(["Line 0", "Line 1", "Line 2"])
     tui = TUI(terminal)
@@ -490,7 +490,7 @@ def render_python_tui_clear_then_content() -> dict[str, object]:
 
 def render_python_tui_style_reset() -> dict[str, object]:
     terminal = RecordingTerminal(columns=20, rows=6)
-    from paw.pi_agent.tui import TUI
+    from kitpaw.pi_agent.tui import TUI
 
     component = _MutableComponent(["\x1b[3mItalic", "Plain"])
     tui = TUI(terminal)

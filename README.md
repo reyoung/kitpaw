@@ -10,7 +10,7 @@ This repository now contains a standard Python project and the initial Python po
 ```python
 import asyncio
 
-from paw.pi_agent.ai import Context, UserMessage, complete, stream, get_model
+from kitpaw.pi_agent.ai import Context, UserMessage, complete, stream, get_model
 
 
 async def main() -> None:
@@ -50,8 +50,8 @@ If `http_client_factory` is provided, the library uses the returned client and d
 ```python
 import asyncio
 
-from paw.pi_agent.agent import Agent, AgentTool, AgentToolResult
-from paw.pi_agent.ai import TextContent
+from kitpaw.pi_agent.agent import Agent, AgentTool, AgentToolResult
+from kitpaw.pi_agent.ai import TextContent
 
 
 async def main() -> None:

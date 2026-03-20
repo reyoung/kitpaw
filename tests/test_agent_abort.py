@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from paw.pi_agent.agent import Agent
+from kitpaw.pi_agent.agent import Agent
 
 
 def test_agent_abort_only_signals_current_run_and_does_not_cancel_caller(
@@ -27,7 +27,7 @@ def test_agent_abort_only_signals_current_run_and_does_not_cancel_caller(
             await cancel_event.wait()
             await released.wait()
 
-        monkeypatch.setattr("paw.pi_agent.agent.agent._run_agent_loop", fake_run_agent_loop)
+        monkeypatch.setattr("kitpaw.pi_agent.agent.agent._run_agent_loop", fake_run_agent_loop)
 
         agent = Agent()
         prompt_task = asyncio.create_task(agent.prompt("hello"))

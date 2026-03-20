@@ -6,11 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from paw.pi_agent.ai import UserMessage, get_model
-from paw.pi_agent.code_agent.package_manager import PackageManager
-from paw.pi_agent.code_agent.sdk import CreateAgentSessionOptions, create_agent_session
-from paw.pi_agent.code_agent.session_manager import SessionManager
-from paw.pi_agent.code_agent.summarizer import estimate_tokens
+from kitpaw.pi_agent.ai import UserMessage, get_model
+from kitpaw.pi_agent.code_agent.package_manager import PackageManager
+from kitpaw.pi_agent.code_agent.sdk import CreateAgentSessionOptions, create_agent_session
+from kitpaw.pi_agent.code_agent.session_manager import SessionManager
+from kitpaw.pi_agent.code_agent.summarizer import estimate_tokens
 from tests.test_mock_e2e import make_chunk, run_mock_openai_server
 
 
@@ -56,7 +56,7 @@ async def test_print_mode_outputs_response(tmp_path: Path, monkeypatch: pytest.M
         result = await create_agent_session(
             CreateAgentSessionOptions(cwd=str(tmp_path), model=model, session_manager=SessionManager.in_memory(str(tmp_path)))
         )
-        from paw.pi_agent.code_agent.modes.print_mode import run_print_mode
+        from kitpaw.pi_agent.code_agent.modes.print_mode import run_print_mode
 
         exit_code = await run_print_mode(result.session, "Say hello")
 
