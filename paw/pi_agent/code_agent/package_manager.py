@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import subprocess
@@ -38,7 +39,7 @@ class PackageManager:
         path.write_text(json.dumps(entries, indent=2), encoding="utf-8")
 
     def _key_for_source(self, source: str) -> str:
-        return str(abs(hash(source)))
+        return hashlib.sha256(source.encode("utf-8")).hexdigest()
 
     def get_installed_path(self, source: str, scope: str = "user") -> str | None:
         for entry in self._read_manifest(scope):

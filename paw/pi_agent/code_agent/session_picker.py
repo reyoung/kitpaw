@@ -39,6 +39,53 @@ def _resolve_scope(query: str | None) -> tuple[str, str | None]:
     return "current", query
 
 
+def _resolve_session_infos_for_scope(
+    scope: str,
+    cwd: str,
+    query: str,
+    session_dir: str | Path | None,
+) -> list[SessionInfo]:
+    if scope == "all":
+        return SessionManager.resolve_all_session_infos(query, session_dir)
+    return SessionManager.resolve_session_infos(cwd, query, session_dir)
+
+
+def _search_session_infos_for_scope(
+    scope: str,
+    cwd: str,
+    query: str,
+    session_dir: str | Path | None,
+) -> list[SessionInfo]:
+    if scope == "all":
+        return SessionManager.search_all_session_infos(query, session_dir)
+    return SessionManager.search_session_infos(cwd, query, session_dir)
+
+
+def _resolve_session_path_for_scope(
+    scope: str,
+    cwd: str,
+    query: str,
+    session_dir: str | Path | None,
+) -> tuple[Path | None, list[SessionInfo]]:
+    candidate = Path(query).expanduser()
+    if candidate.exists():
+        return candidate.resolve(), []
+
+    strict_matches = _resolve_session_infos_for_scope(scope, cwd, query, session_dir)
+    if len(strict_matches) == 1:
+        return Path(strict_matches[0].path), []
+    if strict_matches:
+        return None, strict_matches
+
+    search_matches = _search_session_infos_for_scope(scope, cwd, query, session_dir)
+    if len(search_matches) == 1:
+        return Path(search_matches[0].path), []
+    if search_matches:
+        return None, search_matches
+
+    return None, []
+
+
 def select_session(cwd: str, session_dir: str | Path | None = None, query: str | None = None) -> Path | None:
     scope, scoped_query = _resolve_scope(query)
     infos = SessionManager.list_all_session_infos(session_dir) if scope == "all" else SessionManager.list_session_infos(cwd, session_dir)
@@ -46,25 +93,11 @@ def select_session(cwd: str, session_dir: str | Path | None = None, query: str |
         return None
 
     if scoped_query:
-        strict_matches = (
-            SessionManager.resolve_session_infos(cwd, scoped_query, session_dir)
-            if scope == "current"
-            else SessionManager.resolve_all_session_infos(scoped_query, session_dir)
-        )
-        if len(strict_matches) == 1:
-            return Path(strict_matches[0].path)
-        if strict_matches:
-            infos = strict_matches
-        else:
-            search_matches = (
-                SessionManager.search_session_infos(cwd, scoped_query, session_dir)
-                if scope == "current"
-                else SessionManager.resolve_all_session_infos(scoped_query, session_dir)
-            )
-            if len(search_matches) == 1:
-                return Path(search_matches[0].path)
-            if search_matches:
-                infos = search_matches
+        resolved_path, matches = _resolve_session_path_for_scope(scope, cwd, scoped_query, session_dir)
+        if resolved_path is not None:
+            return resolved_path
+        if matches:
+            infos = matches
 
     title = "Resume Session (All)" if scope == "all" else "Resume Session (Current Folder)"
     print(title)
@@ -81,33 +114,13 @@ def select_session(cwd: str, session_dir: str | Path | None = None, query: str |
                 return Path(infos[index - 1].path)
             print("Invalid selection.")
             continue
-        if choice == query:
-            next_scope, next_query = _resolve_scope(choice)
-            strict_matches = (
-                SessionManager.resolve_session_infos(cwd, next_query or "", session_dir)
-                if next_scope == "current"
-                else SessionManager.resolve_all_session_infos(next_query or "", session_dir)
-            )
-            if len(strict_matches) == 1:
-                return Path(strict_matches[0].path)
-            if strict_matches:
-                infos = strict_matches
-                print("Select a session:")
-                _print_session_list(infos)
-                continue
-            matches = (
-                SessionManager.search_session_infos(cwd, next_query or "", session_dir)
-                if next_scope == "current"
-                else SessionManager.resolve_all_session_infos(next_query or "", session_dir)
-            )
-            if len(matches) == 1:
-                return Path(matches[0].path)
-            if matches:
-                infos = matches
-                print("Select a session:")
-                _print_session_list(infos)
-                continue
-        try:
-            return SessionManager.resolve_session(cwd, choice, session_dir)
-        except ValueError as exc:
-            print(str(exc))
+        next_scope, next_query = _resolve_scope(choice)
+        resolved_path, matches = _resolve_session_path_for_scope(next_scope, cwd, next_query or "", session_dir)
+        if resolved_path is not None:
+            return resolved_path
+        if matches:
+            infos = matches
+            print("Select a session:")
+            _print_session_list(infos)
+            continue
+        print(f"No session found for query: {choice}")

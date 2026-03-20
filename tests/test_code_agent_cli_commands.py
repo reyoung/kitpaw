@@ -292,6 +292,33 @@ def test_code_agent_resume_flag_supports_all_scope(tmp_path: Path) -> None:
     assert "sessionName: beta" in result.stdout
 
 
+def test_code_agent_resume_flag_supports_all_scope_fuzzy_query(tmp_path: Path) -> None:
+    from paw.pi_agent.ai import UserMessage
+    from paw.pi_agent.code_agent.session_manager import SessionManager
+
+    env = _base_env(tmp_path)
+    root = str(Path(__file__).resolve().parent.parent)
+    session_root = tmp_path / "agent" / "sessions"
+    first = SessionManager.create("cwd-a", session_root)
+    first.append_message(UserMessage(content="alpha prompt"))
+    first.set_session_name("alpha")
+    second = SessionManager.create("cwd-b", session_root)
+    second.append_message(UserMessage(content="beta tail match"))
+    second.set_session_name("beta")
+
+    result = subprocess.run(
+        [sys.executable, "-m", "paw.pi_agent.code_agent", "--resume", r"all:re:beta\s+tail"],
+        cwd=root,
+        env={**env, "OPENAI_API_KEY": "test-key", "OPENAI_MODEL": "gpt-4o-mini"},
+        input="/session\n/quit\n",
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "sessionName: beta" in result.stdout
+
+
 def test_code_agent_resume_flag_shows_scope_title(tmp_path: Path) -> None:
     from paw.pi_agent.ai import UserMessage
     from paw.pi_agent.code_agent.session_manager import SessionManager
@@ -330,6 +357,25 @@ def test_code_agent_resume_flag_shows_scope_title(tmp_path: Path) -> None:
     assert result_all.returncode == 0, result_all.stderr or result_all.stdout
     assert "Resume Session (All)" in result_all.stdout
     assert "alpha prompt" in result_all.stdout
+
+
+def test_code_agent_session_dir_flag_controls_new_session_path(tmp_path: Path) -> None:
+    env = _base_env(tmp_path)
+    root = str(Path(__file__).resolve().parent.parent)
+    session_root = tmp_path / "custom-sessions"
+
+    result = subprocess.run(
+        [sys.executable, "-m", "paw.pi_agent.code_agent", "--session-dir", str(session_root)],
+        cwd=root,
+        env={**env, "OPENAI_API_KEY": "test-key", "OPENAI_MODEL": "gpt-4o-mini"},
+        input="/session\n/quit\n",
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert f"sessionFile: {session_root}" in result.stdout
 
 
 def test_code_agent_theme_flag_sets_theme(tmp_path: Path) -> None:

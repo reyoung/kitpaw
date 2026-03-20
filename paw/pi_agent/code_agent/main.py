@@ -73,7 +73,12 @@ async def amain(argv: list[str] | None = None) -> int:
         if session_file is not None:
             session_manager = SessionManager.open(session_file)
 
-    options = CreateAgentSessionOptions(session_manager=session_manager)
+    options = CreateAgentSessionOptions(
+        cwd=os.getcwd(),
+        agent_dir=str(get_agent_dir()),
+        session_dir=args.session_dir,
+        session_manager=session_manager,
+    )
     result = await create_agent_session(options)
     session = result.session
 

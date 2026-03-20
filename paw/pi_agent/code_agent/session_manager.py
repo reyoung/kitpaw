@@ -316,6 +316,10 @@ class SessionManager:
         return _resolve_session_infos(cls.list_all_session_infos(session_dir), query)
 
     @classmethod
+    def search_all_session_infos(cls, query: str, session_dir: str | Path | None = None) -> list[SessionInfo]:
+        return _search_session_infos(cls.list_all_session_infos(session_dir), query)
+
+    @classmethod
     def read_session_info(cls, session_file: str | Path) -> SessionInfo | None:
         path = Path(session_file).resolve()
         try:

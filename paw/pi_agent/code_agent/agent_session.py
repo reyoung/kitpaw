@@ -164,9 +164,13 @@ class AgentSession:
 
     async def new_session(self) -> None:
         self.agent.reset()
-        if self.session_manager.session_file is not None:
-            self.session_manager.entries = []
-            self.session_manager.leaf_id = None
+        current_file = self.session_manager.session_file
+        if current_file is None:
+            self.session_manager = SessionManager.in_memory(self.cwd)
+            return
+
+        session_root = current_file.parent.parent
+        self.session_manager = SessionManager.create(self.cwd, session_root)
 
     def _apply_model(self, provider: str, model_id: str) -> None:
         model = self.model_registry.find(provider, model_id)
@@ -1193,8 +1197,8 @@ class AgentSession:
         return self.branch_with_summary(entry_id, summary)
 
     async def auto_compact(self, first_kept_entry_id: str, custom_instructions: str | None = None) -> dict[str, Any]:
+        tokens_before = estimate_tokens(self.messages)
         summary = await generate_summary(self.model, self.messages, custom_instructions)
-        tokens_before = max(len(summary) // 4, 1)
         return self.compact(first_kept_entry_id, summary, tokens_before)
 
     async def _maybe_auto_compact(self) -> None:

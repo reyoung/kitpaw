@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from dataclasses import replace
 from pathlib import Path
 
@@ -9,6 +10,7 @@ from paw.pi_agent.ai import UserMessage, get_model
 from paw.pi_agent.code_agent.package_manager import PackageManager
 from paw.pi_agent.code_agent.sdk import CreateAgentSessionOptions, create_agent_session
 from paw.pi_agent.code_agent.session_manager import SessionManager
+from paw.pi_agent.code_agent.summarizer import estimate_tokens
 from tests.test_mock_e2e import make_chunk, run_mock_openai_server
 
 
@@ -381,6 +383,19 @@ async def test_agent_session_package_and_resource_schema(tmp_path: Path, monkeyp
     assert not any(item["source"] == str(extra) for item in result.session.list_packages())
 
 
+def test_package_manager_uses_stable_digest_for_install_path(tmp_path: Path) -> None:
+    source = tmp_path / "pkgsrc"
+    source.mkdir()
+    (source / "note.txt").write_text("hello", encoding="utf-8")
+
+    manager = PackageManager(str(tmp_path), str(tmp_path / "agent"), None)
+    installed_path = Path(manager.install(str(source)))
+    expected_key = hashlib.sha256(str(source).encode("utf-8")).hexdigest()
+
+    assert installed_path.name == expected_key
+    assert Path(manager.install(str(source))).name == expected_key
+
+
 @pytest.mark.anyio
 async def test_agent_session_selector_registry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
@@ -489,11 +504,39 @@ async def test_agent_session_generate_summary_and_auto_compact(tmp_path: Path, m
         model = replace(get_model("openai", "gpt-4o-mini"), base_url=base_url)
         result = await create_agent_session(CreateAgentSessionOptions(cwd=str(tmp_path), model=model, session_manager=manager))
         summary = await result.session.generate_summary()
+        tokens_before = estimate_tokens(result.session.messages)
         compacted = await result.session.auto_compact(first["id"])
 
     assert summary["summary"] == "summarized context"
     assert compacted["compactionEntryId"]
     assert result.session.messages[0]["role"] == "compactionSummary"
+    compaction_entry = next(entry for entry in result.session.session_manager.entries if entry["type"] == "compaction")
+    assert compaction_entry["tokensBefore"] == tokens_before
+
+
+@pytest.mark.anyio
+async def test_agent_session_new_session_replaces_file_backed_transcript(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_MODEL", "gpt-4o-mini")
+
+    session_root = tmp_path / "agent" / "sessions"
+    manager = SessionManager.create(str(tmp_path), session_root)
+    manager.append_message(UserMessage(content="before new session"))
+
+    result = await create_agent_session(CreateAgentSessionOptions(cwd=str(tmp_path), session_manager=manager))
+    old_file = Path(result.session.session_file or "")
+
+    await result.session.new_session()
+
+    new_file = Path(result.session.session_file or "")
+    result.session.session_manager.append_message(UserMessage(content="after new session"))
+
+    assert new_file != old_file
+    assert "before new session" in old_file.read_text(encoding="utf-8")
+    assert "after new session" not in old_file.read_text(encoding="utf-8")
+    assert "after new session" in new_file.read_text(encoding="utf-8")
 
 
 @pytest.mark.anyio
