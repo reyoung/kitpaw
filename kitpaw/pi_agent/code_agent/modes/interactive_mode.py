@@ -11,6 +11,32 @@ def _print_help() -> None:
 
 def _print_help_schema(session: AgentSession) -> None:
     schema = session.get_command_schema()
+    groups_by_id = {g["id"]: g for g in schema["groups"]}
+    commands_by_group: dict[str, list[dict[str, object]]] = {}
+    for command in schema["commands"]:
+        group_id = str(command["group"])
+        commands_by_group.setdefault(group_id, []).append(command)
+    sorted_groups = sorted(schema["groups"], key=lambda g: int(g["order"]))
+    first = True
+    for group in sorted_groups:
+        group_id = group["id"]
+        cmds = commands_by_group.get(group_id)
+        if not cmds:
+            continue
+        if not first:
+            print()
+        first = False
+        print(f'  {group["label"]}')
+        max_usage = max(len(str(c["usage"])) for c in cmds)
+        for cmd in cmds:
+            usage = str(cmd["usage"])
+            desc = str(cmd["description"])
+            print(f'    {usage:<{max_usage}}  {desc}')
+
+
+def _print_help_raw(session: AgentSession) -> None:
+    """Print help in raw key=value schema format (for debugging)."""
+    schema = session.get_command_schema()
     for group in schema["groups"]:
         print(f'group {group["id"]}: label={group["label"]} order={group["order"]}')
     for command in schema["commands"]:
@@ -53,7 +79,7 @@ async def run_interactive_mode(session: AgentSession) -> int:
             _print_help()
             continue
         if message == "/help schema":
-            _print_help_schema(session)
+            _print_help_raw(session)
             continue
         if message == "/selectors":
             registry = session.get_selector_registry()

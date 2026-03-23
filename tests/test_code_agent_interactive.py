@@ -20,12 +20,18 @@ def test_code_agent_interactive_session_commands(tmp_path: Path) -> None:
         [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--no-session"],
         cwd=root,
         env=env,
-        input="/help\n/selectors\n/selector theme\n/selector-item model openai/gpt-4o-mini\n/name demo\n/session\n/settings\n/settings schema\n/model schema\n/model\n/cycle-model\n/thinking schema\n/thinking\n/thinking cycle\n/steering schema\n/steering all\n/followup schema\n/followup all\n/new\n/quit\n",
+        input="/help\n/help schema\n/selectors\n/selector theme\n/selector-item model openai/gpt-4o-mini\n/name demo\n/session\n/settings\n/settings schema\n/model schema\n/model\n/cycle-model\n/thinking schema\n/thinking\n/thinking cycle\n/steering schema\n/steering all\n/followup schema\n/followup all\n/new\n/quit\n",
         capture_output=True,
         text=True,
         check=False,
     )
     assert process.returncode == 0, process.stderr or process.stdout
+    # Human-friendly /help output
+    assert "  General" in process.stdout
+    assert "  Session" in process.stdout
+    assert "/help" in process.stdout
+    assert "Show interactive help" in process.stdout
+    # Raw /help schema output
     assert "group general: label=General order=10" in process.stdout
     assert "theme-schema: group=appearance order=70 usage=/theme schema" in process.stdout
     assert "resources-schema: group=resources order=180 usage=/resources schema" in process.stdout
