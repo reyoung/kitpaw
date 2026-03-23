@@ -1,11 +1,10 @@
-## paw
+## kitpaw
 
-This repository now contains a standard Python project and the initial Python port of
-`pi-mono/packages/ai` for the OpenAI Chat Completions interface.
+Python implementation of paw agents and AI integrations.
 
 ## Async API
 
-`paw.pi_agent.ai` is asyncio-first. Use `stream` / `complete`.
+`kitpaw.pi_agent.ai` is asyncio-first. Use `stream` / `complete`.
 
 ```python
 import asyncio
@@ -45,7 +44,7 @@ If `http_client_factory` is provided, the library uses the returned client and d
 
 ## Agent Runtime
 
-`paw.pi_agent.agent` provides the higher-level agent runtime on top of `paw.pi_agent.ai`.
+`kitpaw.pi_agent.agent` provides the higher-level agent runtime on top of `kitpaw.pi_agent.ai`.
 
 ```python
 import asyncio
@@ -89,17 +88,24 @@ and `agent.steer()` to queue additional messages for the next turn.
 
 ## Code Agent
 
-`paw.pi_agent.code_agent` is the Python port of the `pi` coding-agent package. It currently
+`kitpaw.pi_agent.code_agent` is the Python port of the `pi` coding-agent package. It currently
 ships:
 
 - SDK session creation via `create_agent_session()`
 - built-in coding tools (`read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`)
-- `pi` CLI entrypoint with print, JSON, RPC, and minimal interactive modes
+- `pi` / `kitpaw` CLI entrypoints with print, JSON, RPC, and interactive modes
+- real-time streaming output in interactive mode
 
 Run a print-mode smoke:
 
 ```bash
 pi -p "Reply with exactly the word pong."
+```
+
+Run interactive mode (streaming output):
+
+```bash
+pi
 ```
 
 Run JSON mode:
@@ -113,6 +119,12 @@ Run RPC mode:
 ```bash
 pi --mode rpc
 ```
+
+## Custom System Prompt
+
+Place an `AGENTS.md` file in your project root to override the default system prompt.
+The content is loaded automatically at session startup. If no `AGENTS.md` is found, the
+built-in default is used.
 
 ## Local environment
 
