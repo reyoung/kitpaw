@@ -11,7 +11,7 @@ from .config import get_agent_dir, get_auth_path
 from .message_restore import restore_message
 from .messages import convert_to_llm
 from .model_registry import ModelRegistry
-from .resource_loader import DefaultResourceLoader
+from .resource_loader import DefaultResourceLoader, ResourceLoader
 from .session_manager import SessionManager, infer_session_dir
 from .settings_manager import SettingsManager
 from .tools import (
@@ -41,7 +41,7 @@ class CreateAgentSessionOptions:
     settings_manager: Any = None
     auth_storage: Any = None
     model_registry: Any = None
-    resource_loader: Any = None
+    resource_loader: ResourceLoader | None = None
 
 
 @dataclass(slots=True)

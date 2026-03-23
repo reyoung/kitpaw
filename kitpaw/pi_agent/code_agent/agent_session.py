@@ -16,10 +16,10 @@ from .export_html import export_from_file
 from .message_restore import restore_message
 from .model_registry import ModelRegistry
 from .package_manager import PackageManager
+from .resource_loader import ResourceLoader
 from .session_manager import SessionManager, infer_session_dir
 from .settings_manager import SettingsManager
 from .summarizer import estimate_tokens, generate_summary
-from .system_prompt import build_system_prompt
 from .types import PromptOptions, QueueMode, SessionInfo, SessionStateSnapshot
 
 _THINKING_LEVELS: tuple[ThinkingLevel, ...] = ("off", "minimal", "low", "medium", "high", "xhigh")
@@ -44,7 +44,7 @@ class AgentSessionConfig:
     cwd: str
     session_dir: str | None
     model_registry: ModelRegistry
-    resource_loader: Any
+    resource_loader: ResourceLoader
 
 
 class AgentSession:
@@ -59,7 +59,9 @@ class AgentSession:
         self._listeners: list[Callable[[Any], None]] = []
         self.agent.subscribe(self._handle_agent_event)
         skills = self.resource_loader.get_skills().skills
-        self.agent.set_system_prompt(build_system_prompt(self.agent.state.system_prompt, skills))
+        self.agent.set_system_prompt(
+            self.resource_loader.build_system_prompt(self.agent.state.system_prompt, skills)
+        )
 
     def subscribe(self, listener: Callable[[Any], None]) -> Callable[[], None]:
         self._listeners.append(listener)

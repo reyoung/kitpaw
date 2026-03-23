@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 from .config import (
     get_project_agents_path,
@@ -12,6 +12,7 @@ from .config import (
     get_project_skills_dir,
     get_project_themes_dir,
 )
+from .system_prompt import default_build_system_prompt
 from .types import (
     LoadedAgentsFiles,
     LoadedExtensions,
@@ -23,6 +24,30 @@ from .types import (
     Skill,
     ThemeResource,
 )
+
+
+@runtime_checkable
+class ResourceLoader(Protocol):
+    """Protocol describing the interface every resource loader must satisfy."""
+
+    @property
+    def agent_dir(self) -> Path: ...
+
+    async def reload(self) -> None: ...
+
+    def get_skills(self) -> LoadedSkills: ...
+
+    def get_prompts(self) -> LoadedPrompts: ...
+
+    def get_themes(self) -> LoadedThemes: ...
+
+    def get_extensions(self) -> LoadedExtensions: ...
+
+    def get_agents_files(self) -> LoadedAgentsFiles: ...
+
+    def get_system_prompt(self) -> str | None: ...
+
+    def build_system_prompt(self, base_prompt: str | None, skills: list[Skill]) -> str: ...
 
 
 class DefaultResourceLoader:
@@ -64,14 +89,8 @@ class DefaultResourceLoader:
             return None
         return "\n\n".join(Path(path).read_text(encoding="utf-8") for path in files)
 
-    def get_append_system_prompt(self) -> list[str]:
-        return []
-
-    def get_path_metadata(self) -> dict[str, Any]:
-        return {}
-
-    def extend_resources(self, *_args, **_kwargs) -> None:
-        return None
+    def build_system_prompt(self, base_prompt: str | None, skills: list[Skill]) -> str:
+        return default_build_system_prompt(base_prompt, skills)
 
     def _load_agents_files(self) -> LoadedAgentsFiles:
         files: list[str] = []
