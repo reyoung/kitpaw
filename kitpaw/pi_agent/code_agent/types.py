@@ -192,3 +192,24 @@ class SessionMessageEntry(SessionEntryBase):
 
 
 CURRENT_SESSION_VERSION = 3
+
+
+@dataclass(slots=True)
+class CompactionPreparation:
+    """Data passed to a compaction hook before summarization."""
+
+    first_kept_entry_id: str
+    messages_to_summarize: list[Any]
+    tokens_before: int
+    previous_summary: str | None = None
+    custom_instructions: str | None = None
+
+
+@dataclass(slots=True)
+class CompactionResult:
+    """Value returned by a compaction hook to override default summarization."""
+
+    summary: str
+    first_kept_entry_id: str
+    tokens_before: int
+    details: Any = None

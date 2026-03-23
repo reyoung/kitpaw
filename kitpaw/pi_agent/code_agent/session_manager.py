@@ -439,15 +439,24 @@ class SessionManager:
     def append_thinking_level_change(self, thinking_level: str) -> None:
         self._append_entry({"thinkingLevel": thinking_level}, "thinking_level_change")
 
-    def append_compaction(self, summary: str, first_kept_entry_id: str, tokens_before: int) -> str:
-        entry = self._append_entry(
-            {
-                "summary": summary,
-                "firstKeptEntryId": first_kept_entry_id,
-                "tokensBefore": tokens_before,
-            },
-            "compaction",
-        )
+    def append_compaction(
+        self,
+        summary: str,
+        first_kept_entry_id: str,
+        tokens_before: int,
+        details: object | None = None,
+        from_hook: bool = False,
+    ) -> str:
+        data: dict[str, object] = {
+            "summary": summary,
+            "firstKeptEntryId": first_kept_entry_id,
+            "tokensBefore": tokens_before,
+        }
+        if details is not None:
+            data["details"] = details
+        if from_hook:
+            data["fromHook"] = True
+        entry = self._append_entry(data, "compaction")
         return entry["id"]
 
     def branch_with_summary(self, branch_from_id: str | None, summary: str) -> str:
