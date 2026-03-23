@@ -18,7 +18,7 @@ def format_skills_for_prompt(skills: list[Skill]) -> str:
     return "Available skills:\n" + "\n".join(blocks)
 
 
-def build_system_prompt(base_prompt: str | None, skills: list[Skill]) -> str:
+def default_build_system_prompt(base_prompt: str | None, skills: list[Skill]) -> str:
     parts = [
         base_prompt
         or (
