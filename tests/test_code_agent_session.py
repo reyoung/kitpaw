@@ -889,3 +889,73 @@ async def test_agent_session_cycles_and_queue_modes(tmp_path: Path, monkeypatch:
     settings_text = settings_path.read_text(encoding="utf-8")
     assert '"steeringMode": "all"' in settings_text
     assert '"followUpMode": "all"' in settings_text
+
+
+@pytest.mark.anyio
+async def test_compaction_hook_overrides_default_summary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """When a compaction hook returns a CompactionResult, the default summarizer is skipped."""
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_MODEL", "gpt-4o-mini")
+
+    from kitpaw.pi_agent.code_agent.types import CompactionPreparation, CompactionResult
+
+    manager = SessionManager.create(str(tmp_path))
+    first = manager.append_message(UserMessage(content="first"))
+    manager.append_message(UserMessage(content="second"))
+
+    result = await create_agent_session(
+        CreateAgentSessionOptions(cwd=str(tmp_path), session_manager=manager)
+    )
+
+    async def custom_hook(prep: CompactionPreparation) -> CompactionResult:
+        return CompactionResult(
+            summary="custom hook summary",
+            first_kept_entry_id=prep.first_kept_entry_id,
+            tokens_before=prep.tokens_before,
+            details={"source": "test"},
+        )
+
+    result.session.set_compaction_hook(custom_hook)
+
+    # No mock server needed — the hook bypasses LLM call entirely.
+    compacted = await result.session.auto_compact(first["id"])
+
+    assert compacted["compactionEntryId"]
+    entry = next(e for e in result.session.session_manager.entries if e["type"] == "compaction")
+    assert entry["summary"] == "custom hook summary"
+    assert entry["details"] == {"source": "test"}
+    assert entry["fromHook"] is True
+
+
+@pytest.mark.anyio
+async def test_compaction_hook_returns_none_falls_back(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """When the hook returns None, the default generate_summary path is used."""
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_MODEL", "gpt-4o-mini")
+
+    from kitpaw.pi_agent.code_agent.types import CompactionPreparation, CompactionResult
+
+    manager = SessionManager.create(str(tmp_path))
+    first = manager.append_message(UserMessage(content="first"))
+    manager.append_message(UserMessage(content="second"))
+
+    with run_mock_openai_server(
+        [
+            make_chunk(delta={"content": "default summary"}),
+            make_chunk(delta={}, finish_reason="stop", usage={"prompt_tokens": 10, "completion_tokens": 4}),
+        ]
+    ) as (base_url, _state):
+        model = replace(get_model("openai", "gpt-4o-mini"), base_url=base_url)
+        result = await create_agent_session(
+            CreateAgentSessionOptions(cwd=str(tmp_path), model=model, session_manager=manager)
+        )
+
+        async def noop_hook(prep: CompactionPreparation) -> CompactionResult | None:
+            return None
+
+        result.session.set_compaction_hook(noop_hook)
+        compacted = await result.session.auto_compact(first["id"])
+
+    entry = next(e for e in result.session.session_manager.entries if e["type"] == "compaction")
+    assert entry["summary"] == "default summary"
+    assert "fromHook" not in entry

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -20,9 +20,11 @@ from .resource_loader import ResourceLoader
 from .session_manager import SessionManager, infer_session_dir
 from .settings_manager import SettingsManager
 from .summarizer import estimate_tokens, generate_summary
-from .types import PromptOptions, QueueMode, SessionInfo, SessionStateSnapshot
+from .types import CompactionPreparation, CompactionResult, PromptOptions, QueueMode, SessionInfo, SessionStateSnapshot
 
 _THINKING_LEVELS: tuple[ThinkingLevel, ...] = ("off", "minimal", "low", "medium", "high", "xhigh")
+
+CompactionHook = Callable[[CompactionPreparation], Awaitable[CompactionResult | None]]
 
 
 def _estimate_message_entry_tokens(message: dict[str, Any]) -> int:
@@ -57,6 +59,7 @@ class AgentSession:
         self.model_registry = config.model_registry
         self.resource_loader = config.resource_loader
         self._listeners: list[Callable[[Any], None]] = []
+        self._compaction_hook: CompactionHook | None = None
         self.agent.subscribe(self._handle_agent_event)
         skills = self.resource_loader.get_skills().skills
         self.agent.set_system_prompt(
@@ -1114,6 +1117,15 @@ class AgentSession:
         self.settings_manager.set_compaction_keep_recent_tokens(keep_recent_tokens)
         return self.get_compaction_state()
 
+    def set_compaction_hook(self, hook: CompactionHook | None) -> None:
+        """Register a hook called before compaction summarization.
+
+        The hook receives a :class:`CompactionPreparation` and should return
+        a :class:`CompactionResult` to override the default summarization, or
+        ``None`` to fall back to the built-in behaviour.
+        """
+        self._compaction_hook = hook
+
     def get_available_models(self) -> list[Any]:
         return self.model_registry.list_models()
 
@@ -1222,6 +1234,36 @@ class AgentSession:
 
     async def auto_compact(self, first_kept_entry_id: str, custom_instructions: str | None = None) -> dict[str, Any]:
         tokens_before = estimate_tokens(self.messages)
+
+        # Build preparation and try hook first.
+        preparation = CompactionPreparation(
+            first_kept_entry_id=first_kept_entry_id,
+            messages_to_summarize=list(self.messages),
+            tokens_before=tokens_before,
+            previous_summary=None,
+            custom_instructions=custom_instructions,
+        )
+
+        hook_result: CompactionResult | None = None
+        if self._compaction_hook is not None:
+            hook_result = await self._compaction_hook(preparation)
+
+        if hook_result is not None:
+            compaction_entry_id = self.session_manager.append_compaction(
+                hook_result.summary,
+                hook_result.first_kept_entry_id,
+                hook_result.tokens_before,
+                details=hook_result.details,
+                from_hook=True,
+            )
+            self._restore_messages_from_current_branch()
+            return {
+                "compactionEntryId": compaction_entry_id,
+                "leafId": self.session_manager.get_leaf_id(),
+                "cancelled": False,
+            }
+
+        # Fall back to default summarization.
         summary = await generate_summary(self.model, self.messages, custom_instructions)
         return self.compact(first_kept_entry_id, summary, tokens_before)
 
