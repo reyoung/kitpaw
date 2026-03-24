@@ -2,9 +2,10 @@
 
 ## Local credentials
 
-- Use the repository root `.env.local` for local-only credentials.
-- `.env.local` is gitignored and should never be committed.
-- `paw.pi_agent.ai` automatically loads `.env.local` when it exists.
+- Use `.kitpaw` in the repository root or CWD for local-only credentials.
+- CWD `.kitpaw` takes precedence over repo-root `.kitpaw`.
+- `.kitpaw` is gitignored and should never be committed.
+- `paw.pi_agent.ai` automatically loads `.kitpaw` when it exists.
 - Prefer `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, and `OPENAI_FALLBACK_MODEL`.
 
 ## Verification
