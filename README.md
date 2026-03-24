@@ -134,10 +134,11 @@ built-in default is used.
 
 ## Local environment
 
-Put local credentials in the repository root `.env.local`. The package and tests load
-this file automatically when present.
+Put local credentials in a `.kitpaw` file. The package and tests load
+this file automatically when present. Both the repository root and the
+current working directory are checked; CWD takes precedence.
 
-Recommended `.env.local`:
+Recommended `.kitpaw`:
 
 ```dotenv
 OPENAI_BASE_URL=https://open.bigmodel.cn/api/coding/paas/v4
@@ -146,7 +147,7 @@ OPENAI_MODEL=glm-4.7
 OPENAI_FALLBACK_MODEL=glm-4.5
 ```
 
-`.env.local` is ignored by git and must not be committed.
+`.kitpaw` is ignored by git and must not be committed.
 
 ## Commands
 
