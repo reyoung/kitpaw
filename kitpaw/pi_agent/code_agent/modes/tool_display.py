@@ -19,14 +19,28 @@ def _truncate(text: str, max_len: int = 60) -> str:
     return text
 
 
+def _truncate_json_values(obj: Any, max_val_len: int = 30) -> Any:
+    """Recursively truncate string values inside a JSON-like object."""
+    if isinstance(obj, dict):
+        return {k: _truncate_json_values(v, max_val_len) for k, v in obj.items()}
+    if isinstance(obj, list):
+        if len(obj) > 3:
+            return [_truncate_json_values(x, max_val_len) for x in obj[:3]] + [f"…+{len(obj)-3}"]
+        return [_truncate_json_values(x, max_val_len) for x in obj]
+    if isinstance(obj, str) and len(obj) > max_val_len:
+        return obj[:max_val_len].replace("\n", "\\n") + "…"
+    return obj
+
+
 def _format_args(args: Any) -> str:
     if args is None:
         return ""
     if isinstance(args, dict):
+        truncated = _truncate_json_values(args, 20)
         parts = []
-        for k, v in args.items():
+        for k, v in truncated.items():
             v_str = json.dumps(v, ensure_ascii=False) if not isinstance(v, str) else v
-            parts.append(f"{k}={_truncate(v_str, 20)}")
+            parts.append(f"{k}={v_str}")
         return ", ".join(parts)
     return _truncate(str(args))
 
@@ -37,6 +51,14 @@ def _format_result(result: Any) -> str:
     content = getattr(result, "content", None)
     if isinstance(content, list) and content:
         text = getattr(content[0], "text", str(content[0]))
+        # Try to parse as JSON and truncate each field
+        try:
+            parsed = json.loads(text)
+            if isinstance(parsed, dict):
+                truncated = _truncate_json_values(parsed, 30)
+                return json.dumps(truncated, ensure_ascii=False)
+        except (json.JSONDecodeError, TypeError):
+            pass
         return _truncate(text, 80)
     return _truncate(str(result), 80)
 
