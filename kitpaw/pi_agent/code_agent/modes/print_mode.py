@@ -1,21 +1,28 @@
 from __future__ import annotations
 
+import sys
+
 from ..agent_session import AgentSession
 
 
 async def run_print_mode(session: AgentSession, message: str) -> int:
-    chunks: list[str] = []
+    streaming_started = False
 
     def listener(event) -> None:
+        nonlocal streaming_started
         if getattr(event, "type", None) == "message_update":
             assistant_event = getattr(event, "assistant_message_event", None)
             if getattr(assistant_event, "type", None) == "text_delta":
-                chunks.append(assistant_event.delta)
+                streaming_started = True
+                sys.stdout.write(assistant_event.delta)
+                sys.stdout.flush()
 
     unsubscribe = session.subscribe(listener)
     try:
         await session.prompt(message)
     finally:
         unsubscribe()
-    print("".join(chunks).strip())
+    if streaming_started:
+        sys.stdout.write("\n")
+        sys.stdout.flush()
     return 0
