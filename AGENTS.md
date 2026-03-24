@@ -13,6 +13,12 @@
 - `uv run pytest` runs unit tests and the local mock-server end-to-end tests.
 - `PAW_RUN_REAL_E2E=1 uv run pytest -m real_e2e` runs the real OpenAI-compatible smoke test.
 
+## Git workflow
+
+- Daily development happens on the `develop` branch. Push directly to `develop`.
+- Only merge `develop` into `main` when cutting a release.
+- Do not switch to `main` for routine commits — stay on `develop`.
+
 ## Development workflow
 
 - For substantial work, proceed in this order: design document, interfaces, unit tests, implementation.
