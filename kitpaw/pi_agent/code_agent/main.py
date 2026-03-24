@@ -332,6 +332,22 @@ async def amain(argv: list[str] | None = None) -> int:
             session.agent.set_tools([all_tools[name] for name in tool_names if name in all_tools])
 
     message = " ".join(args.messages).strip()
+
+    # Check that an API key is available before entering any mode.
+    provider = args.provider or "openai"
+    api_key = session.model_registry.auth_storage.get_api_key(provider)
+    if not api_key:
+        print(
+            f"Error: No API key found for provider '{provider}'.\n"
+            f"\n"
+            f"Set one of the following:\n"
+            f"  1. OPENAI_API_KEY environment variable\n"
+            f"  2. --api-key flag\n"
+            f"  3. .env.local file with OPENAI_API_KEY=...",
+            file=sys.stderr,
+        )
+        return 1
+
     if args.mode == "rpc":
         return await run_rpc_mode(session)
     if args.mode == "json":
