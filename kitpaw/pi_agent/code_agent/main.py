@@ -79,8 +79,37 @@ async def amain(argv: list[str] | None = None) -> int:
         session_dir=args.session_dir,
         session_manager=session_manager,
     )
+
+    if args.agent == "zed":
+        from .zed.compaction import configure_zed_compaction
+        from .zed.resource_loader import ZedResourceLoader
+        from .zed.tools import create_zed_tools
+
+        zed_tools = create_zed_tools(os.getcwd())
+        zed_loader = ZedResourceLoader(
+            os.getcwd(), str(get_agent_dir()), None,
+        )
+        zed_loader.set_tool_names([t.name for t in zed_tools])
+        options.resource_loader = zed_loader
+        options.tools = zed_tools
+
     result = await create_agent_session(options)
     session = result.session
+
+    if args.agent == "zed":
+        configure_zed_compaction(session)
+        # Rebuild tools with parent_agent now available for spawn_agent
+        zed_tools_with_parent = create_zed_tools(os.getcwd(), parent_agent=session.agent)
+        session.agent.set_tools(zed_tools_with_parent)
+        # Rebuild system prompt with model name now available
+        tool_names = [t.name for t in session.agent.state.tools]
+        zed_loader = session.resource_loader
+        if hasattr(zed_loader, "build_system_prompt_with_tools"):
+            session.agent.set_system_prompt(
+                zed_loader.build_system_prompt_with_tools(
+                    tool_names, model_name=session.model.name,
+                )
+            )
 
     if args.provider and args.model:
         await session.set_model(args.provider, args.model)
@@ -98,8 +127,14 @@ async def amain(argv: list[str] | None = None) -> int:
         )
     if args.tools:
         tool_names = [name.strip() for name in args.tools.split(",") if name.strip()]
-        all_tools = create_all_tools(session.cwd, command_prefix=session.settings_manager.get_shell_command_prefix())
-        session.agent.set_tools([all_tools[name] for name in tool_names if name in all_tools])
+        if args.agent == "zed":
+            from .zed.tools import create_zed_tools as _create_zed_tools
+
+            all_zed = {t.name: t for t in _create_zed_tools(session.cwd)}
+            session.agent.set_tools([all_zed[n] for n in tool_names if n in all_zed])
+        else:
+            all_tools = create_all_tools(session.cwd, command_prefix=session.settings_manager.get_shell_command_prefix())
+            session.agent.set_tools([all_tools[name] for name in tool_names if name in all_tools])
 
     message = " ".join(args.messages).strip()
     if args.mode == "rpc":

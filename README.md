@@ -2,6 +2,8 @@
 
 Python implementation of paw agents and AI integrations.
 
+> **Platform support:** Linux and macOS only. Windows is not supported.
+
 ## Async API
 
 `kitpaw.pi_agent.ai` is asyncio-first. Use `stream` / `complete`.
@@ -95,6 +97,10 @@ ships:
 - built-in coding tools (`read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`)
 - `pi` / `kitpaw` CLI entrypoints with print, JSON, RPC, and interactive modes
 - real-time streaming output in interactive mode
+
+The repository also includes an experimental `--agent zed` mode that ports parts of Zed's agent
+surface into the Python runtime. Known gaps and non-goals for that mode are documented in
+[docs/code-agents/zed_limitations.md](docs/code-agents/zed_limitations.md).
 
 Run a print-mode smoke:
 

@@ -8,6 +8,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("command", nargs="?")
     parser.add_argument("messages", nargs="*")
     parser.add_argument("--mode", choices=["text", "json", "rpc"], default="text")
+    parser.add_argument("--agent", choices=["pi", "zed"], default="pi")
     parser.add_argument("--print", "-p", dest="print_mode", action="store_true")
     parser.add_argument("--provider")
     parser.add_argument("--model")
