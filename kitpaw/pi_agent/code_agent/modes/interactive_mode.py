@@ -607,11 +607,17 @@ async def run_interactive_mode(session: AgentSession) -> int:
                     sys.stdout.write(assistant_event.delta)
                     sys.stdout.flush()
 
+        from .tool_display import make_tool_listener
+
+        tool_listener = make_tool_listener()
+
         unsubscribe = session.subscribe(listener)
+        unsub_tool = session.subscribe(tool_listener)
         try:
             await session.prompt(message)
         finally:
             unsubscribe()
+            unsub_tool()
         if streaming_started:
             sys.stdout.write("\n")
             sys.stdout.flush()
