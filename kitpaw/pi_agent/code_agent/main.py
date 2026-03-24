@@ -331,6 +331,18 @@ async def amain(argv: list[str] | None = None) -> int:
             all_tools = create_all_tools(session.cwd, command_prefix=session.settings_manager.get_shell_command_prefix())
             session.agent.set_tools([all_tools[name] for name in tool_names if name in all_tools])
 
+    if args.system_prompt:
+        sp = args.system_prompt
+        if sp.startswith("@"):
+            path = sp[1:]
+            try:
+                with open(path, encoding="utf-8") as f:
+                    sp = f.read()
+            except OSError as e:
+                print(f"Error reading system prompt file: {e}", file=sys.stderr)
+                return 1
+        session.agent.set_system_prompt(sp)
+
     message = " ".join(args.messages).strip()
 
     # Check that an API key is available before entering any mode.
