@@ -1,10 +1,19 @@
 from __future__ import annotations
 
 import argparse
+from importlib.metadata import version as _pkg_version
+
+
+def _get_version() -> str:
+    try:
+        return f"kitpaw {_pkg_version('kitpaw')}"
+    except Exception:
+        return "kitpaw (unknown version)"
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pi")
+    parser.add_argument("--version", action="version", version=_get_version())
     parser.add_argument("command", nargs="?")
     parser.add_argument("messages", nargs="*")
     parser.add_argument("--mode", choices=["text", "json", "rpc"], default="text")
