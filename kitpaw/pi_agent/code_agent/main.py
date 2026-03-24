@@ -225,6 +225,18 @@ async def amain(argv: list[str] | None = None) -> int:
         options.resource_loader = zed_loader
         options.tools = zed_tools
 
+    elif args.agent == "codex":
+        from .codex.resource_loader import CodexResourceLoader
+        from .codex.tools import create_codex_tools
+
+        codex_tools = create_codex_tools(os.getcwd())
+        codex_loader = CodexResourceLoader(
+            os.getcwd(), str(get_agent_dir()), None,
+        )
+        codex_loader.set_tool_names([t.name for t in codex_tools])
+        options.resource_loader = codex_loader
+        options.tools = codex_tools
+
     result = await create_agent_session(options)
     session = result.session
 
@@ -242,6 +254,52 @@ async def amain(argv: list[str] | None = None) -> int:
                     tool_names, model_name=session.model.name,
                 )
             )
+
+    elif args.agent == "codex":
+        from .codex.compaction import configure_codex_compaction
+
+        configure_codex_compaction(session)
+
+        # Force system role (not developer) to match Codex Rust
+        from dataclasses import replace as _replace
+        from ..ai.types import OpenAICompletionsCompat
+
+        model = session.model
+        current_compat = model.compat or OpenAICompletionsCompat()
+        session.agent._state.model = _replace(
+            model, compat=_replace(current_compat, supports_developer_role=False),
+        )
+
+        # Wrap convert_to_llm to inject extra messages matching Codex Rust's
+        # message structure: permissions in system prompt, AGENTS.md + env_context
+        # as user messages before the user's prompt.
+        codex_loader = session.resource_loader
+        if hasattr(codex_loader, "get_permissions_message"):
+            from ..ai import UserMessage
+            from ..ai.types import TextContent
+
+            # Append permissions to system prompt (Codex sends as developer role,
+            # but since some providers don't support developer role, we merge it)
+            perms_text = codex_loader.get_permissions_message()
+            current_sp = session.agent.state.system_prompt
+            session.agent.set_system_prompt(current_sp + "\n\n" + perms_text)
+
+            # Build prefix user messages: AGENTS.md + env_context
+            agents_md_msgs = codex_loader.get_agents_md_messages()
+            env_msg = codex_loader.get_environment_context_message()
+
+            prefix_messages = []
+            for am in agents_md_msgs:
+                prefix_messages.append(UserMessage(content=[TextContent(text=am["content"])]))
+            prefix_messages.append(UserMessage(content=[TextContent(text=env_msg["content"])]))
+
+            original_convert = session.agent.convert_to_llm
+
+            def codex_convert_to_llm(messages):
+                converted = original_convert(messages)
+                return list(prefix_messages) + list(converted)
+
+            session.agent.convert_to_llm = codex_convert_to_llm
 
     if args.provider and args.model:
         await session.set_model(args.provider, args.model)
@@ -264,6 +322,11 @@ async def amain(argv: list[str] | None = None) -> int:
 
             all_zed = {t.name: t for t in _create_zed_tools(session.cwd)}
             session.agent.set_tools([all_zed[n] for n in tool_names if n in all_zed])
+        elif args.agent == "codex":
+            from .codex.tools import create_codex_tools as _create_codex_tools
+
+            all_codex = {t.name: t for t in _create_codex_tools(session.cwd)}
+            session.agent.set_tools([all_codex[n] for n in tool_names if n in all_codex])
         else:
             all_tools = create_all_tools(session.cwd, command_prefix=session.settings_manager.get_shell_command_prefix())
             session.agent.set_tools([all_tools[name] for name in tool_names if name in all_tools])
