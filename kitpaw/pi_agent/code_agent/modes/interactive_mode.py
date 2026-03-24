@@ -3,6 +3,11 @@ from __future__ import annotations
 import asyncio
 import sys
 
+try:
+    import readline  # noqa: F401 — importing readline patches input() with proper line editing
+except ImportError:
+    pass
+
 from ..agent_session import AgentSession
 
 
