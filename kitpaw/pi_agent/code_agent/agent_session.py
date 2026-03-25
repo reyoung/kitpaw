@@ -61,6 +61,7 @@ class AgentSession:
         self._listeners: list[Callable[[Any], None]] = []
         self._compaction_hook: CompactionHook | None = None
         self.agent.subscribe(self._handle_agent_event)
+        self.agent.format_tool_not_found = self.resource_loader.format_tool_not_found
         skills = self.resource_loader.get_skills().skills
         self.agent.set_system_prompt(
             self.resource_loader.build_system_prompt(self.agent.state.system_prompt, skills)

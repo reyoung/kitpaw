@@ -49,6 +49,8 @@ class ResourceLoader(Protocol):
 
     def build_system_prompt(self, base_prompt: str | None, skills: list[Skill]) -> str: ...
 
+    def format_tool_not_found(self, tool_name: str) -> str: ...
+
 
 class DefaultResourceLoader:
     def __init__(self, cwd: str, agent_dir: str, settings_manager) -> None:
@@ -91,6 +93,9 @@ class DefaultResourceLoader:
 
     def build_system_prompt(self, base_prompt: str | None, skills: list[Skill]) -> str:
         return default_build_system_prompt(base_prompt, skills)
+
+    def format_tool_not_found(self, tool_name: str) -> str:
+        return f"Tool {tool_name} not found"
 
     def _load_agents_files(self) -> LoadedAgentsFiles:
         files: list[str] = []

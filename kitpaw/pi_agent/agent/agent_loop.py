@@ -624,8 +624,9 @@ async def _prepare_tool_call(
 ) -> PreparedToolCall | ImmediateToolCallOutcome:
     tool = next((candidate for candidate in (current_context.tools or []) if candidate.name == tool_call.name), None)
     if tool is None:
+        msg = config.format_tool_not_found(tool_call.name) if config.format_tool_not_found else f"Tool {tool_call.name} not found"
         return ImmediateToolCallOutcome(
-            result=_create_error_tool_result(f"Tool {tool_call.name} not found"),
+            result=_create_error_tool_result(msg),
             is_error=True,
         )
 

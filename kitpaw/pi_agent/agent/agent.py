@@ -61,6 +61,7 @@ class Agent:
         self.tool_execution = opts.tool_execution
         self._before_tool_call = opts.before_tool_call
         self._after_tool_call = opts.after_tool_call
+        self.format_tool_not_found = opts.format_tool_not_found
         self._listeners: set[Callable[[Any], None]] = set()
         self._running_future: asyncio.Future[None] | None = None
         self._current_task: asyncio.Task[Any] | None = None
@@ -295,6 +296,7 @@ class Agent:
             before_tool_call=self._before_tool_call,
             after_tool_call=self._after_tool_call,
             stream_options=options,
+            format_tool_not_found=self.format_tool_not_found,
         )
 
     async def _run_with_messages(

@@ -154,6 +154,7 @@ class AgentLoopConfig:
         AfterToolCallResult | Awaitable[AfterToolCallResult | None] | None,
     ] | None = None
     stream_options: SimpleStreamOptions | dict[str, Any] | None = None
+    format_tool_not_found: Callable[[str], str] | None = None
 
 
 @dataclass(slots=True, kw_only=True)
@@ -183,6 +184,7 @@ class AgentOptions:
         [AfterToolCallContext, asyncio.Event | None],
         AfterToolCallResult | Awaitable[AfterToolCallResult | None] | None,
     ] | None = None
+    format_tool_not_found: Callable[[str], str] | None = None
 
 
 @dataclass(slots=True)
