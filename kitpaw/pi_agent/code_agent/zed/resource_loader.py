@@ -72,6 +72,9 @@ class ZedResourceLoader:
 
     # --- Zed-specific overrides ---
 
+    def format_tool_not_found(self, tool_name: str) -> str:
+        return self._delegate.format_tool_not_found(tool_name)
+
     def get_system_prompt(self) -> str | None:
         """Always return ``None`` so the caller uses ``build_system_prompt``.
 
