@@ -33,4 +33,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--tools")
     parser.add_argument("--system-prompt", help="Override the system prompt. Use @file to read from a file.")
     parser.add_argument("--local", "-l", action="store_true")
+    parser.add_argument(
+        "--error-log-jsonl",
+        help="Path to a JSONL file for logging execution errors (e.g. tool call failures).",
+    )
     return parser

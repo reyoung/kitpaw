@@ -360,17 +360,28 @@ async def amain(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    if args.mode == "rpc":
-        return await run_rpc_mode(session)
-    if args.mode == "json":
-        return await run_json_mode(session, message)
-    if args.print_mode:
-        return await run_print_mode(session, message)
-    if message:
-        return await run_print_mode(session, message)
+    # Set up JSONL error logging if requested.
+    error_log_cleanup = None
+    if args.error_log_jsonl:
+        from .error_logger import setup_error_logger
 
-    _print_openai_provider_config(session, args)
-    return await run_interactive_mode(session)
+        error_log_cleanup = setup_error_logger(session, args.error_log_jsonl)
+
+    try:
+        if args.mode == "rpc":
+            return await run_rpc_mode(session)
+        if args.mode == "json":
+            return await run_json_mode(session, message)
+        if args.print_mode:
+            return await run_print_mode(session, message)
+        if message:
+            return await run_print_mode(session, message)
+
+        _print_openai_provider_config(session, args)
+        return await run_interactive_mode(session)
+    finally:
+        if error_log_cleanup is not None:
+            error_log_cleanup()
 
 
 def main(argv: list[str] | None = None) -> int:
