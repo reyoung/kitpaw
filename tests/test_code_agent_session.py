@@ -65,6 +65,20 @@ async def test_print_mode_outputs_response(tmp_path: Path, monkeypatch: pytest.M
     assert captured.out.strip() == "hello"
 
 
+@pytest.mark.anyio
+async def test_default_tool_not_found_message_lists_current_tools(tmp_path: Path) -> None:
+    result = await create_agent_session(
+        CreateAgentSessionOptions(cwd=str(tmp_path), session_manager=SessionManager.in_memory(str(tmp_path)))
+    )
+
+    message = result.session.resource_loader.format_tool_not_found("run")
+
+    assert message == (
+        'Error: Tool "run" is not available in this environment. Do not retry it. '
+        "Available tools: read, bash, edit, write, uv."
+    )
+
+
 def test_cli_continue_uses_latest_session(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     session_root = tmp_path / "agent" / "sessions"
     older = SessionManager.create(str(tmp_path), session_root)

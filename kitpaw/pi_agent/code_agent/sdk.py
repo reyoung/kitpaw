@@ -69,6 +69,8 @@ async def create_agent_session(options: CreateAgentSessionOptions | None = None)
     context = session_manager.build_runtime_context() if session_manager.entries else {"messages": [], "model": None, "thinkingLevel": None}
     restored_messages = [restore_message(message) for message in context["messages"] if isinstance(message, dict)]
     tools = opts.tools or create_coding_tools(cwd, command_prefix=settings_manager.get_shell_command_prefix())
+    if hasattr(resource_loader, "set_tool_names"):
+        resource_loader.set_tool_names([tool.name for tool in tools])
     restored_model = context.get("model")
     model = opts.model or (
         model_registry.find(restored_model["provider"], restored_model["modelId"]) if restored_model else create_default_model()

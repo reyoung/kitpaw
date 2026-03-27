@@ -33,6 +33,8 @@ class ResourceLoader(Protocol):
     @property
     def agent_dir(self) -> Path: ...
 
+    def set_tool_names(self, names: list[str]) -> None: ...
+
     async def reload(self) -> None: ...
 
     def get_skills(self) -> LoadedSkills: ...
@@ -57,11 +59,15 @@ class DefaultResourceLoader:
         self.cwd = Path(cwd).resolve()
         self.agent_dir = Path(agent_dir).resolve()
         self.settings_manager = settings_manager
+        self._tool_names: list[str] = []
         self._skills = LoadedSkills()
         self._prompts = LoadedPrompts()
         self._themes = LoadedThemes()
         self._extensions = LoadedExtensions()
         self._agents_files = LoadedAgentsFiles()
+
+    def set_tool_names(self, names: list[str]) -> None:
+        self._tool_names = list(names)
 
     async def reload(self) -> None:
         self._skills = self._load_skills()
@@ -95,7 +101,10 @@ class DefaultResourceLoader:
         return default_build_system_prompt(base_prompt, skills)
 
     def format_tool_not_found(self, tool_name: str) -> str:
-        return f"Tool {tool_name} not found"
+        message = f'Error: Tool "{tool_name}" is not available in this environment. Do not retry it.'
+        if self._tool_names:
+            message += f" Available tools: {', '.join(self._tool_names)}."
+        return message
 
     def _load_agents_files(self) -> LoadedAgentsFiles:
         files: list[str] = []
