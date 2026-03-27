@@ -21,6 +21,21 @@ class TruncationResult:
     max_lines: int
     max_bytes: int
 
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "content": self.content,
+            "truncated": self.truncated,
+            "truncated_by": self.truncated_by,
+            "total_lines": self.total_lines,
+            "total_bytes": self.total_bytes,
+            "output_lines": self.output_lines,
+            "output_bytes": self.output_bytes,
+            "last_line_partial": self.last_line_partial,
+            "first_line_exceeds_limit": self.first_line_exceeds_limit,
+            "max_lines": self.max_lines,
+            "max_bytes": self.max_bytes,
+        }
+
 
 def format_size(bytes_count: int) -> str:
     if bytes_count < 1024:

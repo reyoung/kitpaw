@@ -50,3 +50,15 @@ async def test_code_agent_bash_tool(tmp_path: Path) -> None:
     tools = create_all_tools(str(tmp_path))
     result = await tools["bash"].execute("call-bash", {"command": "printf 'hello\\nworld'"})
     assert result.content[0].text == "hello\nworld"
+
+
+@pytest.mark.anyio
+async def test_code_agent_bash_tool_exposes_truncation_details(tmp_path: Path) -> None:
+    tools = create_all_tools(str(tmp_path))
+    long_output = "for i in $(seq 1 2505); do echo line-$i; done"
+    result = await tools["bash"].execute("call-bash-long", {"command": long_output})
+
+    assert "Showing lines" in result.content[0].text
+    assert result.details is not None
+    assert result.details["truncation"]["truncated"] is True
+    assert result.details["truncation"]["truncated_by"] == "lines"

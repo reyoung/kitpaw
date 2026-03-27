@@ -53,14 +53,14 @@ def create_read_tool(cwd: str) -> AgentTool[dict[str, object], dict[str, object]
                 f"[Line {line_display} is {format_size(len(all_lines[start].encode('utf-8')))}, exceeds "
                 f"{format_size(DEFAULT_MAX_BYTES)} limit. Use bash: sed -n '{line_display}p' {path} | head -c {DEFAULT_MAX_BYTES}]"
             )
-            details = {"truncation": truncation.__dict__}
+            details = {"truncation": truncation.to_dict()}
         elif truncation.truncated:
             end_display = start + truncation.output_lines
             output += (
                 f"\n\n[Showing lines {start + 1}-{end_display} of {len(all_lines)}. "
                 f"Use offset={end_display + 1} to continue.]"
             )
-            details = {"truncation": truncation.__dict__}
+            details = {"truncation": truncation.to_dict()}
         elif limit is not None and start + len(selected) < len(all_lines):
             output += (
                 f"\n\n[{len(all_lines) - (start + len(selected))} more lines in file. "

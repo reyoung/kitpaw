@@ -116,7 +116,7 @@ def create_uv_tool(cwd: str) -> AgentTool[dict[str, object], dict[str, object] |
         full_output = b"".join(chunks).decode("utf-8", errors="replace")
         truncation = truncate_tail(full_output)
         output = truncation.content or "(no output)"
-        details = {"truncation": truncation.__dict__} if truncation.truncated else None
+        details = {"truncation": truncation.to_dict()} if truncation.truncated else None
 
         if truncation.truncated:
             start_line = truncation.total_lines - truncation.output_lines + 1

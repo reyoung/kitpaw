@@ -33,7 +33,7 @@ def create_ls_tool(cwd: str) -> AgentTool[dict[str, object], dict[str, object] |
             notices.append(f"{format_size(DEFAULT_MAX_BYTES)} limit reached")
         if notices:
             output += f"\n\n[{'. '.join(notices)}]"
-            details = {"truncation": truncation.__dict__}
+            details = {"truncation": truncation.to_dict()}
         return AgentToolResult(content=[TextContent(text=output)], details=details)
 
     return AgentTool(
