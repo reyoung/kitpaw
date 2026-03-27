@@ -7,6 +7,7 @@ from dataclasses import asdict, is_dataclass
 from typing import Any
 
 from ..agent_session import AgentSession
+from ..tool_error_limit import ToolErrorLimitExceededError, consume_tool_error_limit_exception
 from ..types import PromptOptions
 
 
@@ -54,12 +55,18 @@ async def run_rpc_mode(session: AgentSession) -> int:
                         command["message"],
                         options,
                     )
+                    if (limit_error := consume_tool_error_limit_exception(session)) is not None:
+                        raise limit_error
                     payload: Any = {}
                 elif command_type == "steer":
                     await session.steer(command["message"])
+                    if (limit_error := consume_tool_error_limit_exception(session)) is not None:
+                        raise limit_error
                     payload = {}
                 elif command_type == "follow_up":
                     await session.follow_up(command["message"])
+                    if (limit_error := consume_tool_error_limit_exception(session)) is not None:
+                        raise limit_error
                     payload = {}
                 elif command_type == "get_state":
                     payload = _encode(session.get_state())
@@ -213,6 +220,8 @@ async def run_rpc_mode(session: AgentSession) -> int:
                     + "\n"
                 )
                 sys.stdout.flush()
+                if isinstance(exc, ToolErrorLimitExceededError):
+                    return 1
     finally:
         unsubscribe()
     return 0

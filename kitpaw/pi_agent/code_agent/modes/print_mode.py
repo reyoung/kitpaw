@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 
 from ..agent_session import AgentSession
+from ..tool_error_limit import peek_tool_error_limit_exception
 from .tool_display import make_tool_listener
 
 
@@ -27,6 +28,8 @@ async def run_print_mode(session: AgentSession, message: str) -> int:
     finally:
         unsub_text()
         unsub_tool()
+    if peek_tool_error_limit_exception(session) is not None:
+        return 1
     if streaming_started:
         sys.stdout.write("\n")
         sys.stdout.flush()

@@ -16,6 +16,11 @@ from .package_manager import PackageManager
 from .sdk import CreateAgentSessionOptions, create_agent_session
 from .session_manager import SessionManager
 from .session_picker import select_session
+from .tool_error_limit import (
+    ToolErrorLimitExceededError,
+    configure_tool_error_limit,
+    consume_tool_error_limit_exception,
+)
 from .tools import create_all_tools
 
 
@@ -315,6 +320,11 @@ async def amain(argv: list[str] | None = None) -> int:
         session.model_registry.auth_storage.set_runtime_api_key(
             args.provider or "openai", args.api_key
         )
+    if args.max_tool_errors is not None:
+        if args.max_tool_errors < 1:
+            print("Error: --max-tool-errors must be at least 1.", file=sys.stderr)
+            return 1
+        configure_tool_error_limit(session, args.max_tool_errors)
     if args.tools:
         tool_names = [name.strip() for name in args.tools.split(",") if name.strip()]
         if args.agent == "zed":
@@ -368,17 +378,33 @@ async def amain(argv: list[str] | None = None) -> int:
         error_log_cleanup = setup_error_logger(session, args.error_log_jsonl)
 
     try:
-        if args.mode == "rpc":
-            return await run_rpc_mode(session)
-        if args.mode == "json":
-            return await run_json_mode(session, message)
-        if args.print_mode:
-            return await run_print_mode(session, message)
-        if message:
-            return await run_print_mode(session, message)
+        try:
+            if args.mode == "rpc":
+                return await run_rpc_mode(session)
+            if args.mode == "json":
+                exit_code = await run_json_mode(session, message)
+                if exit_code != 0 and (limit_error := consume_tool_error_limit_exception(session)) is not None:
+                    print(f"Error: {limit_error}", file=sys.stderr)
+                return exit_code
+            if args.print_mode:
+                exit_code = await run_print_mode(session, message)
+                if exit_code != 0 and (limit_error := consume_tool_error_limit_exception(session)) is not None:
+                    print(f"Error: {limit_error}", file=sys.stderr)
+                return exit_code
+            if message:
+                exit_code = await run_print_mode(session, message)
+                if exit_code != 0 and (limit_error := consume_tool_error_limit_exception(session)) is not None:
+                    print(f"Error: {limit_error}", file=sys.stderr)
+                return exit_code
 
-        _print_openai_provider_config(session, args)
-        return await run_interactive_mode(session)
+            _print_openai_provider_config(session, args)
+            exit_code = await run_interactive_mode(session)
+            if exit_code != 0 and (limit_error := consume_tool_error_limit_exception(session)) is not None:
+                print(f"Error: {limit_error}", file=sys.stderr)
+            return exit_code
+        except ToolErrorLimitExceededError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
     finally:
         if error_log_cleanup is not None:
             error_log_cleanup()

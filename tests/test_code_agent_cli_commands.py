@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from tests.test_mock_e2e import make_chunk, run_mock_openai_server
+
 
 def _base_env(tmp_path: Path) -> dict[str, str]:
     env = os.environ.copy()
@@ -435,3 +437,69 @@ def test_code_agent_handles_empty_project_settings_file(tmp_path: Path) -> None:
             settings_path.write_text(original, encoding="utf-8")
 
     assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_code_agent_exits_after_max_tool_errors(tmp_path: Path) -> None:
+    env = _base_env(tmp_path)
+    root = str(Path(__file__).resolve().parent.parent)
+    env["OPENAI_API_KEY"] = "test-key"
+    env["OPENAI_MODEL"] = "gpt-4o-mini"
+
+    chunks = [
+        make_chunk(
+            delta={
+                "tool_calls": [
+                    {
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {"name": "run", "arguments": "{}"},
+                    }
+                ]
+            },
+            finish_reason="tool_calls",
+            usage={"prompt_tokens": 4, "completion_tokens": 2},
+        )
+    ]
+
+    with run_mock_openai_server(chunks) as (base_url, _state):
+        env["OPENAI_BASE_URL"] = base_url
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "kitpaw.pi_agent.code_agent",
+                "--print",
+                "--max-tool-errors",
+                "2",
+                "trigger tool failures",
+            ],
+            cwd=root,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+
+    assert result.returncode == 1
+    assert "Tool error limit reached after 2 failures" in result.stderr
+
+
+def test_code_agent_rejects_non_positive_max_tool_errors(tmp_path: Path) -> None:
+    env = _base_env(tmp_path)
+    root = str(Path(__file__).resolve().parent.parent)
+    env["OPENAI_API_KEY"] = "test-key"
+    env["OPENAI_MODEL"] = "gpt-4o-mini"
+
+    result = subprocess.run(
+        [sys.executable, "-m", "kitpaw.pi_agent.code_agent", "--print", "--max-tool-errors", "0", "hello"],
+        cwd=root,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
+
+    assert result.returncode == 1
+    assert "--max-tool-errors must be at least 1" in result.stderr

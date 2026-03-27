@@ -529,7 +529,17 @@ async def _execute_tool_calls_sequential(
 
         preparation = await _prepare_tool_call(current_context, assistant_message, tool_call, config, cancel_event)
         if isinstance(preparation, ImmediateToolCallOutcome):
-            results.append(await _emit_tool_call_outcome(tool_call, preparation.result, preparation.is_error, emit))
+            results.append(
+                await _finalize_immediate_tool_call(
+                    current_context,
+                    assistant_message,
+                    tool_call,
+                    preparation,
+                    config,
+                    emit,
+                    cancel_event,
+                )
+            )
         else:
             executed = await _execute_prepared_tool_call(preparation, emit, cancel_event)
             results.append(
@@ -570,7 +580,17 @@ async def _execute_tool_calls_parallel(
 
         preparation = await _prepare_tool_call(current_context, assistant_message, tool_call, config, cancel_event)
         if isinstance(preparation, ImmediateToolCallOutcome):
-            results.append(await _emit_tool_call_outcome(tool_call, preparation.result, preparation.is_error, emit))
+            results.append(
+                await _finalize_immediate_tool_call(
+                    current_context,
+                    assistant_message,
+                    tool_call,
+                    preparation,
+                    config,
+                    emit,
+                    cancel_event,
+                )
+            )
         else:
             runnable_calls.append(preparation)
 
@@ -613,6 +633,43 @@ class ImmediateToolCallOutcome:
 class ExecutedToolCallOutcome:
     result: AgentToolResult[Any]
     is_error: bool
+
+
+async def _finalize_immediate_tool_call(
+    current_context: AgentContext,
+    assistant_message: AssistantMessage,
+    tool_call: AgentToolCall,
+    outcome: ImmediateToolCallOutcome,
+    config: AgentLoopConfig,
+    emit: AgentEventSink,
+    cancel_event: asyncio.Event | None = None,
+) -> ToolResultMessage:
+    result = outcome.result
+    is_error = outcome.is_error
+
+    if config.after_tool_call:
+        after_result = await _maybe_await(
+            config.after_tool_call(
+                AfterToolCallContext(
+                    assistant_message=assistant_message,
+                    tool_call=tool_call,
+                    args=tool_call.arguments,
+                    result=result,
+                    is_error=is_error,
+                    context=current_context,
+                ),
+                cancel_event,
+            )
+        )
+        normalized_after = _normalize_after_result(after_result)
+        if normalized_after:
+            result = AgentToolResult(
+                content=normalized_after.content if normalized_after.content is not None else result.content,
+                details=normalized_after.details if normalized_after.details is not None else result.details,
+            )
+            is_error = normalized_after.is_error if normalized_after.is_error is not None else is_error
+
+    return await _emit_tool_call_outcome(tool_call, result, is_error, emit)
 
 
 async def _prepare_tool_call(

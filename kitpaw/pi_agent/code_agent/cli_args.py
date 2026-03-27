@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import argparse
-from importlib.metadata import version as _pkg_version
+
+from kitpaw.version import get_version
 
 
 def _get_version() -> str:
-    try:
-        return f"kitpaw {_pkg_version('kitpaw')}"
-    except Exception:
-        return "kitpaw (unknown version)"
+    return f"kitpaw {get_version()}"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -36,5 +34,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--error-log-jsonl",
         help="Path to a JSONL file for logging execution errors (e.g. tool call failures).",
+    )
+    parser.add_argument(
+        "--max-tool-errors",
+        type=int,
+        help="Exit with an error after this many tool call failures. Defaults to unlimited.",
     )
     return parser

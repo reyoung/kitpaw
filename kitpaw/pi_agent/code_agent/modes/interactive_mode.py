@@ -9,6 +9,7 @@ except ImportError:
     pass
 
 from ..agent_session import AgentSession
+from ..tool_error_limit import peek_tool_error_limit_exception
 
 
 def _print_help() -> None:
@@ -623,6 +624,8 @@ async def run_interactive_mode(session: AgentSession) -> int:
         finally:
             unsubscribe()
             unsub_tool()
+        if peek_tool_error_limit_exception(session) is not None:
+            return 1
         if streaming_started:
             sys.stdout.write("\n")
             sys.stdout.flush()

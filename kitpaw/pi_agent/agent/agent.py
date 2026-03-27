@@ -86,6 +86,16 @@ class Agent:
     def set_thinking_level(self, level: ThinkingLevel) -> None:
         self._state.thinking_level = level
 
+    def set_after_tool_call(
+        self,
+        hook: Callable[
+            [AfterToolCallContext, asyncio.Event | None],
+            AfterToolCallResult | Awaitable[AfterToolCallResult | None] | None,
+        ]
+        | None,
+    ) -> None:
+        self._after_tool_call = hook
+
     def set_steering_mode(self, mode: Literal["all", "one-at-a-time"]) -> None:
         self.steering_mode = mode
 
