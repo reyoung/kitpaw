@@ -129,6 +129,7 @@ class AgentSession:
                 await self.follow_up(text, images=images)
                 return
             raise ValueError("Agent is already streaming. Use streaming_behavior='steer' or 'followUp'.")
+        await self._maybe_pre_turn_compact()
         await self.agent.prompt(text, images=images)
         await self._maybe_auto_compact()
 
@@ -1250,14 +1251,31 @@ class AgentSession:
             hook_result = await self._compaction_hook(preparation)
 
         if hook_result is not None:
+            # Extract replacement_messages before persisting — UserMessage
+            # objects are not JSON-serialisable so they must not reach the
+            # session file.
+            replacement = None
+            persist_details = hook_result.details
+            if isinstance(hook_result.details, dict):
+                replacement = hook_result.details.get("replacement_messages")
+                if replacement is not None:
+                    persist_details = {k: v for k, v in hook_result.details.items() if k != "replacement_messages"}
+
             compaction_entry_id = self.session_manager.append_compaction(
                 hook_result.summary,
                 hook_result.first_kept_entry_id,
                 hook_result.tokens_before,
-                details=hook_result.details,
+                details=persist_details or None,
                 from_hook=True,
             )
-            self._restore_messages_from_current_branch()
+            # If the hook provides replacement messages (e.g. Codex-style
+            # compaction with recent user messages + summary), apply them
+            # directly to the agent's live state instead of restoring from
+            # the session branch.
+            if replacement is not None:
+                self.agent._state.messages[:] = replacement
+            else:
+                self._restore_messages_from_current_branch()
             return {
                 "compactionEntryId": compaction_entry_id,
                 "leafId": self.session_manager.get_leaf_id(),
@@ -1274,6 +1292,27 @@ class AgentSession:
             return
         current_messages = self.messages
         estimated_tokens = estimate_tokens(current_messages)
+        threshold = max(self.model.context_window - settings.reserve_tokens, 0)
+        if estimated_tokens <= threshold:
+            return
+
+        first_kept_entry_id = self._find_first_kept_entry_id(settings.keep_recent_tokens)
+        if first_kept_entry_id is None:
+            return
+
+        result = await self.auto_compact(first_kept_entry_id)
+        self._emit({"type": "auto_compaction_end", "data": result})
+
+    async def _maybe_pre_turn_compact(self) -> None:
+        """Pre-turn compaction: compact before model sampling if over threshold.
+
+        Matches Codex Rust's ``run_pre_sampling_compact`` which runs at the
+        start of a turn, before the new user message is sent to the model.
+        """
+        settings = self.settings_manager.get_settings().compaction
+        if not settings.enabled:
+            return
+        estimated_tokens = estimate_tokens(self.messages)
         threshold = max(self.model.context_window - settings.reserve_tokens, 0)
         if estimated_tokens <= threshold:
             return
