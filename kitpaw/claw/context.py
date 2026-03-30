@@ -18,5 +18,7 @@ class OpenClawToolContext:
     model_id: str
     thinking_level: str
     sandboxed: bool
+    prompt_mode: str = "full"
     system_prompt: str | None = None
+    system_prompt_is_override: bool = False
     on_yield: YieldCallback | None = None

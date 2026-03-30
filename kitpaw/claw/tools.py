@@ -1,30 +1,19 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from collections.abc import Awaitable
 from pathlib import Path
 from typing import Any
 
-from ..pi_agent.agent.types import AgentTool, AgentToolResult
+from ..pi_agent.agent.types import AgentTool
 from ..pi_agent.ai.models import get_model
-from ..pi_agent.ai.types import TextContent
-from ..pi_agent.code_agent.sdk import CreateAgentSessionOptions, create_agent_session
 from ..pi_agent.code_agent.session_manager import SessionInfo, SessionManager
-from ..pi_agent.code_agent.tools import create_coding_tools
+from ..pi_agent.code_agent.tools import create_edit_tool, create_read_tool, create_write_tool
+from .apply_patch import create_apply_patch_tool
 from .context import OpenClawToolContext
+from .exec_tools import create_exec_tool, create_process_tool
 from .registry import SubagentHandle, get_subagent_registry, now_iso
-
-
-def _json_result(payload: dict[str, Any]) -> AgentToolResult[dict[str, Any]]:
-    return AgentToolResult(
-        content=[TextContent(text=json.dumps(payload))],
-        details=payload,
-    )
-
-
-def _error_result(message: str, **extra: Any) -> AgentToolResult[dict[str, Any]]:
-    return _json_result({"status": "error", "error": message, **extra})
+from .result_utils import error_result, json_result
 
 
 def _extract_message_text(message: dict[str, Any]) -> str:
@@ -93,30 +82,6 @@ def _serialize_history_messages(manager: SessionManager, limit: int | None = Non
     return items
 
 
-def _build_child_context(
-    parent_context: OpenClawToolContext,
-    *,
-    child_session_id: str,
-    model_id: str,
-    thinking_level: str,
-    workspace_dir: str,
-) -> OpenClawToolContext:
-    return OpenClawToolContext(
-        cwd=workspace_dir,
-        workspace_dir=workspace_dir,
-        spawn_workspace_dir=workspace_dir,
-        agent_id=parent_context.agent_id,
-        session_id=child_session_id,
-        controller_session_id=child_session_id,
-        model_provider=parent_context.model_provider,
-        model_id=model_id,
-        thinking_level=thinking_level,
-        sandboxed=parent_context.sandboxed,
-        system_prompt=parent_context.system_prompt,
-        on_yield=parent_context.on_yield,
-    )
-
-
 async def _create_child_handle(
     parent_context: OpenClawToolContext,
     *,
@@ -127,27 +92,25 @@ async def _create_child_handle(
     model_id: str,
     thinking_level: str,
 ) -> SubagentHandle:
+    from .runtime import CreateClawSessionOptions, create_claw_session
+
     child_manager = SessionManager.create(workspace_dir)
-    child_context = _build_child_context(
-        parent_context,
-        child_session_id=child_manager.get_session_id(),
-        model_id=model_id,
-        thinking_level=thinking_level,
-        workspace_dir=workspace_dir,
-    )
-    child_tools = create_openclaw_coding_tools(workspace_dir, child_context)
     model = get_model(parent_context.model_provider, model_id)
-    result = await create_agent_session(
-        CreateAgentSessionOptions(
+    result = await create_claw_session(
+        CreateClawSessionOptions(
             cwd=workspace_dir,
             model=model,
             thinking_level=thinking_level,
-            tools=child_tools,
             session_manager=child_manager,
+            agent_id=parent_context.agent_id,
+            sandboxed=parent_context.sandboxed,
+            on_yield=parent_context.on_yield,
+            prompt_mode="minimal",
+            system_prompt=(
+                parent_context.system_prompt if parent_context.system_prompt_is_override else None
+            ),
         )
     )
-    if parent_context.system_prompt:
-        result.session.agent.set_system_prompt(parent_context.system_prompt)
     if label:
         result.session.set_session_name(label)
     return SubagentHandle(
@@ -254,7 +217,7 @@ async def _run_subagent_with_timeout(
 def create_sessions_list_tool(context: OpenClawToolContext) -> AgentTool:
     async def execute(tool_call_id, args, cancel_event=None, on_update=None):
         infos = _list_session_infos(context)
-        return _json_result(
+        return json_result(
             {
                 "status": "ok",
                 "current_session_id": context.session_id,
@@ -278,9 +241,9 @@ def create_sessions_history_tool(context: OpenClawToolContext) -> AgentTool:
         limit = int(limit_raw) if isinstance(limit_raw, int) and limit_raw > 0 else None
         info = _resolve_session_info(context, session_id)
         if info is None:
-            return _error_result("Session not found.", session_id=session_id or context.session_id)
+            return error_result("Session not found.", session_id=session_id or context.session_id)
         manager = SessionManager.open(info.path)
-        return _json_result(
+        return json_result(
             {
                 "status": "ok",
                 "session": _session_info_payload(info, context),
@@ -309,10 +272,10 @@ def create_session_status_tool(context: OpenClawToolContext) -> AgentTool:
         session_id = args.get("session_id")
         info = _resolve_session_info(context, session_id)
         if info is None:
-            return _error_result("Session not found.", session_id=session_id or context.session_id)
+            return error_result("Session not found.", session_id=session_id or context.session_id)
         manager = SessionManager.open(info.path)
         runtime = manager.build_runtime_context()
-        return _json_result(
+        return json_result(
             {
                 "status": "ok",
                 "session": _session_info_payload(info, context),
@@ -343,22 +306,22 @@ def create_sessions_spawn_tool(context: OpenClawToolContext) -> AgentTool:
     async def execute(tool_call_id, args, cancel_event=None, on_update=None):
         runtime = args.get("runtime", "subagent")
         if runtime != "subagent":
-            return _error_result("Only runtime='subagent' is supported in Python OpenClaw.")
+            return error_result("Only runtime='subagent' is supported in Python OpenClaw.")
         task = args.get("task", "").strip()
         if not task:
-            return _error_result("Missing required field: task.")
+            return error_result("Missing required field: task.")
         mode = args.get("mode", "run")
         if mode not in {"run", "session"}:
-            return _error_result("Unsupported mode.", mode=mode)
+            return error_result("Unsupported mode.", mode=mode)
         cleanup = args.get("cleanup", "keep")
         if cleanup not in {"keep", "delete"}:
-            return _error_result("Unsupported cleanup mode.", cleanup=cleanup)
+            return error_result("Unsupported cleanup mode.", cleanup=cleanup)
         workspace_dir = str(Path(args.get("cwd") or context.spawn_workspace_dir or context.workspace_dir).resolve())
         model_id = str(args.get("model") or context.model_id)
         thinking_level = str(args.get("thinking") or context.thinking_level)
         timeout_seconds = args.get("run_timeout_seconds")
         if timeout_seconds is not None and not isinstance(timeout_seconds, int):
-            return _error_result("run_timeout_seconds must be an integer.")
+            return error_result("run_timeout_seconds must be an integer.")
 
         handle = await _create_child_handle(
             context,
@@ -388,7 +351,7 @@ def create_sessions_spawn_tool(context: OpenClawToolContext) -> AgentTool:
         }
         if status == "error":
             payload["error"] = run_result.get("error_message") or "Subagent run failed."
-        return _json_result(payload)
+        return json_result(payload)
 
     return AgentTool(
         name="sessions_spawn",
@@ -418,13 +381,13 @@ def create_sessions_send_tool(context: OpenClawToolContext) -> AgentTool:
         session_id = str(args.get("session_id", "")).strip()
         message = str(args.get("message", "")).strip()
         if not session_id:
-            return _error_result("Missing required field: session_id.")
+            return error_result("Missing required field: session_id.")
         if not message:
-            return _error_result("Missing required field: message.")
+            return error_result("Missing required field: message.")
         registry = get_subagent_registry()
         handle = registry.resolve(context.controller_session_id, session_id)
         if handle is None:
-            return _error_result("Session is not visible from this controller.", session_id=session_id)
+            return error_result("Session is not visible from this controller.", session_id=session_id)
         run_result = await _run_subagent(handle, message)
         if handle.cleanup == "delete":
             registry.remove(handle.session_id)
@@ -437,7 +400,7 @@ def create_sessions_send_tool(context: OpenClawToolContext) -> AgentTool:
         }
         if run_result.get("status") == "error":
             payload["error"] = run_result.get("error_message") or "Subagent run failed."
-        return _json_result(payload)
+        return json_result(payload)
 
     return AgentTool(
         name="sessions_send",
@@ -459,9 +422,9 @@ def create_sessions_yield_tool(context: OpenClawToolContext) -> AgentTool:
     async def execute(tool_call_id, args, cancel_event=None, on_update=None):
         message = str(args.get("message", "")).strip()
         if not message:
-            return _error_result("Missing required field: message.")
+            return error_result("Missing required field: message.")
         if context.on_yield is None:
-            return _json_result(
+            return json_result(
                 {
                     "status": "ok",
                     "yielded": False,
@@ -494,7 +457,7 @@ def create_subagents_tool(context: OpenClawToolContext) -> AgentTool:
         action = str(args.get("action") or "list")
         registry = get_subagent_registry()
         if action == "list":
-            return _json_result(
+            return json_result(
                 {
                     "status": "ok",
                     "items": [
@@ -506,15 +469,15 @@ def create_subagents_tool(context: OpenClawToolContext) -> AgentTool:
 
         target = str(args.get("target", "")).strip()
         if not target:
-            return _error_result("Missing required field: target.")
+            return error_result("Missing required field: target.")
         handle = registry.resolve(context.controller_session_id, target)
         if handle is None:
-            return _error_result("Unknown subagent target.", target=target)
+            return error_result("Unknown subagent target.", target=target)
 
         if action == "steer":
             message = str(args.get("message", "")).strip()
             if not message:
-                return _error_result("Missing required field: message.", target=target)
+                return error_result("Missing required field: message.", target=target)
             run_result = await _run_subagent(handle, message)
             if handle.cleanup == "delete":
                 registry.remove(handle.session_id)
@@ -528,13 +491,13 @@ def create_subagents_tool(context: OpenClawToolContext) -> AgentTool:
             }
             if run_result.get("status") == "error":
                 payload["error"] = run_result.get("error_message") or "Subagent run failed."
-            return _json_result(payload)
+            return json_result(payload)
 
         if action == "kill":
             if handle.current_task is not None and not handle.current_task.done():
                 await handle.session.abort()
             registry.remove(handle.session_id)
-            return _json_result(
+            return json_result(
                 {
                     "status": "ok",
                     "session_id": handle.session_id,
@@ -542,7 +505,7 @@ def create_subagents_tool(context: OpenClawToolContext) -> AgentTool:
                 }
             )
 
-        return _error_result("Unsupported action.", action=action)
+        return error_result("Unsupported action.", action=action)
 
     return AgentTool(
         name="subagents",
@@ -563,7 +526,12 @@ def create_subagents_tool(context: OpenClawToolContext) -> AgentTool:
 
 def create_openclaw_coding_tools(cwd: str, context: OpenClawToolContext) -> list[AgentTool]:
     return [
-        *create_coding_tools(cwd),
+        create_read_tool(cwd),
+        create_edit_tool(cwd),
+        create_write_tool(cwd),
+        create_exec_tool(context),
+        create_process_tool(context),
+        create_apply_patch_tool(context),
         create_sessions_list_tool(context),
         create_sessions_history_tool(context),
         create_session_status_tool(context),

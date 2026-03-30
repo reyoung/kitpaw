@@ -32,6 +32,7 @@ class CreateClawSessionOptions:
     agent_id: str = "claw"
     sandboxed: bool = False
     on_yield: YieldCallback | None = None
+    prompt_mode: str = "full"
 
 
 @dataclass(slots=True)
@@ -54,7 +55,9 @@ def _build_tool_context(
     model_id: str,
     thinking_level: str,
     sandboxed: bool,
+    prompt_mode: str,
     system_prompt: str | None,
+    system_prompt_is_override: bool,
     on_yield: YieldCallback | None,
 ) -> OpenClawToolContext:
     return OpenClawToolContext(
@@ -68,7 +71,9 @@ def _build_tool_context(
         model_id=model_id,
         thinking_level=thinking_level,
         sandboxed=sandboxed,
+        prompt_mode=prompt_mode,
         system_prompt=system_prompt,
+        system_prompt_is_override=system_prompt_is_override,
         on_yield=on_yield,
     )
 
@@ -78,6 +83,9 @@ def _resolve_final_prompt(
     session: AgentSession,
     tool_names: list[str],
     override: str | None,
+    *,
+    prompt_mode: str,
+    agent_id: str,
 ) -> str:
     if override is not None:
         return override
@@ -85,6 +93,9 @@ def _resolve_final_prompt(
         return resource_loader.build_system_prompt_with_tools(
             tool_names,
             model_name=getattr(session.model, "name", None),
+            thinking_level=session.thinking_level,
+            agent_id=agent_id,
+            prompt_mode=prompt_mode,
         )
     return session.system_prompt
 
@@ -109,7 +120,9 @@ async def create_claw_session(
         model_id=provisional_model.id,
         thinking_level=provisional_thinking,
         sandboxed=opts.sandboxed,
+        prompt_mode=opts.prompt_mode,
         system_prompt=None,
+        system_prompt_is_override=opts.system_prompt is not None,
         on_yield=opts.on_yield,
     )
     resource_loader = opts.resource_loader or ClawResourceLoader(
@@ -140,6 +153,8 @@ async def create_claw_session(
         session,
         [tool.name for tool in initial_tools],
         opts.system_prompt,
+        prompt_mode=opts.prompt_mode,
+        agent_id=opts.agent_id,
     )
     final_model = session.model or provisional_model
     final_context = _build_tool_context(
@@ -151,7 +166,9 @@ async def create_claw_session(
         model_id=final_model.id,
         thinking_level=session.thinking_level,
         sandboxed=opts.sandboxed,
+        prompt_mode=opts.prompt_mode,
         system_prompt=final_prompt,
+        system_prompt_is_override=opts.system_prompt is not None,
         on_yield=opts.on_yield,
     )
     final_tools = create_openclaw_coding_tools(workspace_dir, final_context)

@@ -17,8 +17,9 @@ def test_claw_resource_loader_builds_claw_prompt(tmp_path: Path) -> None:
     )
 
     assert "You are Claw" in prompt
-    assert "top-level agent runtime" in prompt
-    assert "sessions_spawn" in prompt
+    assert "## Tooling" in prompt
+    assert "- sessions_spawn: Spawn a local subagent session" in prompt
+    assert "Tool names are case-sensitive." in prompt
     assert "underlying code agent" in prompt
 
 
@@ -28,6 +29,7 @@ async def test_create_claw_session_binds_claw_tools_and_prompt(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("PI_CODING_AGENT_DIR", str(tmp_path / "agent"))
+    (tmp_path / "AGENTS.md").write_text("Follow the local project rules.", encoding="utf-8")
 
     result = await create_claw_session(
         CreateClawSessionOptions(
@@ -39,9 +41,11 @@ async def test_create_claw_session_binds_claw_tools_and_prompt(
     tool_names = {tool.name for tool in session.agent.state.tools}
     assert {
         "read",
-        "bash",
         "edit",
         "write",
+        "exec",
+        "process",
+        "apply_patch",
         "sessions_list",
         "sessions_history",
         "session_status",
@@ -51,7 +55,10 @@ async def test_create_claw_session_binds_claw_tools_and_prompt(
         "subagents",
     } <= tool_names
     assert "You are Claw" in session.system_prompt
-    assert "local-only orchestration tools" in session.system_prompt
+    assert "## Tooling" in session.system_prompt
+    assert "## Safety" in session.system_prompt
+    assert "# Project Context" in session.system_prompt
+    assert "Follow the local project rules." in session.system_prompt
     assert isinstance(result.resource_loader, ClawResourceLoader)
 
 
@@ -80,3 +87,20 @@ async def test_create_claw_session_rebinds_resumed_sessions(
     assert [message.role for message in session.messages] == ["user"]
     assert "You are Claw" in session.system_prompt
     assert "sessions_send" in {tool.name for tool in session.agent.state.tools}
+
+
+@pytest.mark.anyio
+async def test_create_claw_session_preserves_explicit_system_prompt_override(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PI_CODING_AGENT_DIR", str(tmp_path / "agent"))
+
+    result = await create_claw_session(
+        CreateClawSessionOptions(
+            cwd=str(tmp_path),
+            system_prompt="OVERRIDE PROMPT",
+        )
+    )
+
+    assert result.session.system_prompt == "OVERRIDE PROMPT"

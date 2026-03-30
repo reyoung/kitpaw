@@ -8,6 +8,9 @@ Python coding engine, instead of treating it as another
 
 The first runnable `claw` surface is still the local orchestration layer:
 
+- `exec`
+- `process`
+- `apply_patch`
 - `sessions_list`
 - `sessions_history`
 - `session_status`
@@ -22,7 +25,7 @@ The first runnable `claw` surface is still the local orchestration layer:
 - No channel/message delivery
 - No plugin tool loading
 - No ACP runtime
-- No OpenClaw-specific exec sandbox/policy pipeline
+- No OpenClaw-specific exec approval/safe-bin/sandbox pipeline
 - No `pi --agent claw`
 
 ## Public Interface
@@ -94,9 +97,11 @@ It delegates skills/prompts/themes/extensions/AGENTS discovery to the
 existing default loader, but builds a `claw`-specific prompt that:
 
 - identifies the runtime as `claw`
-- describes the current workspace
-- lists the available tools
-- explains local-only orchestration semantics
+- uses OpenClaw-style prompt modes: `full`, `minimal`, `none`
+- renders ordered tool summaries instead of a raw tool-name list
+- emits a local-only `Skills (mandatory)` section with `<available_skills>`
+- injects `AGENTS.md` into `Project Context`
+- includes workspace/runtime guidance for the local execution plane
 - does not advertise unimplemented OpenClaw features
 
 ### Session visibility
@@ -115,19 +120,37 @@ Visibility remains local-only and controller-scoped.
 - `mode="session"` keeps a persistent child session
 - `cleanup="delete"` removes only the runtime registry handle
 
-Child sessions inherit:
+Child sessions inherit the tool set produced by `create_openclaw_coding_tools`,
+including the local `exec` / `process` / `apply_patch` execution plane.
 
-- model provider/id
-- thinking level
-- system prompt
-- the tool set produced by `create_openclaw_coding_tools`
+Prompt inheritance is now mode-aware:
+
+- normal `claw` sessions use the `full` prompt
+- spawned child sessions use the `minimal` prompt
+- explicit `system_prompt` overrides are inherited verbatim
+
+### Local execution plane
+
+`claw` now owns a local OpenClaw-style execution plane:
+
+- `exec` starts foreground or background shell commands
+- `process` lists, polls, logs, writes to, kills, and removes background exec sessions
+- `apply_patch` applies OpenClaw patch-format edits inside the workspace
+
+This is still intentionally local-only:
+
+- no approval flow
+- no safe-bin policy
+- no sandbox host selection
+- no gateway-backed process execution
 
 ## Storage Model
 
 Persisted conversation state continues to use the existing JSONL session
 files managed by `SessionManager`.
 
-Subagent registry state remains runtime-only and process-local.
+Subagent registry state and exec/process registry state remain runtime-only
+and process-local.
 
 ## Testing Strategy
 
@@ -136,6 +159,8 @@ Add coverage for:
 - `ClawResourceLoader` prompt generation
 - `create_claw_session()` tool binding and final prompt binding
 - resumed sessions rebinding `claw` tools
+- foreground/background `exec` and `process` lifecycle
+- OpenClaw-format `apply_patch`
 - `python -m kitpaw.claw --no-session`
 - CLI rejection of `--agent`
 

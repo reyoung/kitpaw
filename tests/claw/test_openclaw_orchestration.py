@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 
 from kitpaw.claw import OpenClawToolContext, create_openclaw_coding_tools
+from kitpaw.claw.registry import get_subagent_registry
 from kitpaw.pi_agent.ai import UserMessage, get_model
 from kitpaw.pi_agent.code_agent.sdk import CreateAgentSessionOptions, create_agent_session
 from kitpaw.pi_agent.code_agent.session_manager import SessionManager
@@ -69,9 +70,11 @@ def test_openclaw_tool_inventory_and_names(tmp_path: Path) -> None:
     names = {tool.name for tool in tools}
     assert names == {
         "read",
-        "bash",
         "edit",
         "write",
+        "exec",
+        "process",
+        "apply_patch",
         "sessions_list",
         "sessions_history",
         "session_status",
@@ -136,6 +139,7 @@ async def test_sessions_spawn_session_send_subagents_and_history(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    get_subagent_registry().clear()
     monkeypatch.setenv("PI_CODING_AGENT_DIR", str(tmp_path / "agent"))
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.setenv("OPENAI_MODEL", "gpt-4o-mini")
@@ -162,6 +166,14 @@ async def test_sessions_spawn_session_send_subagents_and_history(
         )
         assert spawn_payload["status"] == "ok"
         child_session_id = spawn_payload["session_id"]
+        handle = get_subagent_registry().resolve(context.controller_session_id, child_session_id)
+        assert handle is not None
+        assert "## Tooling" in handle.session.system_prompt
+        assert "## Workspace" in handle.session.system_prompt
+        assert "## Runtime" in handle.session.system_prompt
+        assert "## Tool Call Style" not in handle.session.system_prompt
+        assert "## Safety" not in handle.session.system_prompt
+        assert "# Project Context" not in handle.session.system_prompt
 
         list_payload = _json_payload(
             await _tool_by_name(tools, "subagents").execute(
@@ -229,10 +241,51 @@ async def test_sessions_spawn_session_send_subagents_and_history(
 
 
 @pytest.mark.anyio
+async def test_sessions_spawn_preserves_explicit_prompt_override(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    get_subagent_registry().clear()
+    monkeypatch.setenv("PI_CODING_AGENT_DIR", str(tmp_path / "agent"))
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_MODEL", "gpt-4o-mini")
+
+    with run_mock_openai_server(
+        [
+            make_chunk(delta={"content": "child ok"}),
+            make_chunk(delta={}, finish_reason="stop", usage={"prompt_tokens": 4, "completion_tokens": 2}),
+        ]
+    ) as (base_url, _state):
+        monkeypatch.setenv("OPENAI_BASE_URL", base_url)
+        manager = SessionManager.in_memory(str(tmp_path))
+        context = replace(
+            _make_context(tmp_path, session_id=manager.get_session_id()),
+            system_prompt="OVERRIDE PROMPT",
+            system_prompt_is_override=True,
+        )
+        tools = create_openclaw_coding_tools(str(tmp_path), context)
+
+        spawn_payload = _json_payload(
+            await _tool_by_name(tools, "sessions_spawn").execute(
+                "spawn",
+                {"task": "first task", "mode": "session"},
+                None,
+                None,
+            )
+        )
+        assert spawn_payload["status"] == "ok"
+        child_session_id = spawn_payload["session_id"]
+        handle = get_subagent_registry().resolve(context.controller_session_id, child_session_id)
+        assert handle is not None
+        assert handle.session.system_prompt == "OVERRIDE PROMPT"
+
+
+@pytest.mark.anyio
 async def test_sessions_spawn_run_cleanup_delete_removes_registry_handle(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    get_subagent_registry().clear()
     monkeypatch.setenv("PI_CODING_AGENT_DIR", str(tmp_path / "agent"))
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.setenv("OPENAI_MODEL", "gpt-4o-mini")

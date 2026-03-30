@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from ..pi_agent.code_agent.resource_loader import DefaultResourceLoader
-from ..pi_agent.code_agent.system_prompt import format_skills_for_prompt
 from ..pi_agent.code_agent.types import (
     LoadedAgentsFiles,
     LoadedExtensions,
@@ -12,7 +12,13 @@ from ..pi_agent.code_agent.types import (
     LoadedThemes,
     Skill,
 )
-from .system_prompt import build_claw_system_prompt
+from .system_prompt import (
+    ClawContextFile,
+    ClawPromptContext,
+    ClawRuntimeInfo,
+    build_claw_system_prompt,
+    format_claw_skills_for_prompt,
+)
 
 
 class ClawResourceLoader:
@@ -61,13 +67,54 @@ class ClawResourceLoader:
         available_tools: list[str],
         *,
         model_name: str | None = None,
+        thinking_level: str | None = None,
+        agent_id: str = "claw",
+        prompt_mode: str = "full",
     ) -> str:
-        del model_name
-        return self._build_prompt(available_tools, self.get_skills().skills)
+        return self._build_prompt(
+            available_tools,
+            self.get_skills().skills,
+            model_name=model_name,
+            thinking_level=thinking_level,
+            agent_id=agent_id,
+            prompt_mode=prompt_mode,
+        )
 
-    def _build_prompt(self, available_tools: list[str], skills: list[Skill]) -> str:
-        prompt = build_claw_system_prompt(available_tools=available_tools, cwd=self._cwd)
-        skill_text = format_skills_for_prompt(skills)
-        if skill_text:
-            prompt = prompt + "\n\n" + skill_text
-        return prompt
+    def _get_context_files(self) -> list[ClawContextFile]:
+        files: list[ClawContextFile] = []
+        for path_str in self._delegate.get_agents_files().agents_files:
+            path = Path(path_str)
+            try:
+                content = path.read_text(encoding="utf-8").strip()
+            except OSError:
+                continue
+            if not content:
+                continue
+            files.append(ClawContextFile(path=str(path), content=content))
+        return files
+
+    def _build_prompt(
+        self,
+        available_tools: list[str],
+        skills: list[Skill],
+        *,
+        model_name: str | None = None,
+        thinking_level: str | None = None,
+        agent_id: str = "claw",
+        prompt_mode: str = "full",
+    ) -> str:
+        context = ClawPromptContext(
+            available_tools=available_tools,
+            workspace_dir=self._cwd,
+            prompt_mode=prompt_mode,
+            runtime_info=ClawRuntimeInfo(
+                agent_id=agent_id,
+                repo_root=self._cwd,
+                model_name=model_name,
+                shell=os.environ.get("SHELL"),
+                thinking_level=thinking_level,
+            ),
+            skills_prompt=format_claw_skills_for_prompt(skills),
+            context_files=self._get_context_files(),
+        )
+        return build_claw_system_prompt(context)
