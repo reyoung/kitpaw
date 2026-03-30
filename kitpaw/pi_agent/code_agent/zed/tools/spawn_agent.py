@@ -15,7 +15,6 @@ def create_spawn_agent_tool(cwd: str, *, parent_agent: Agent | None = None) -> A
     active_sessions: dict[str, Agent] = {}
 
     async def execute(tool_call_id: str, args: Any, cancel_event=None, on_update=None) -> AgentToolResult:
-        label = args.get("label", "")
         message = args.get("message", "")
         session_id = args.get("session_id")
 
@@ -57,8 +56,13 @@ def create_spawn_agent_tool(cwd: str, *, parent_agent: Agent | None = None) -> A
                     "tools": child_tools,
                 },
                 "convert_to_llm": parent_agent.convert_to_llm,
+                "before_tool_call": parent_agent._before_tool_call,  # type: ignore[attr-defined]
+                "after_tool_call": parent_agent._after_tool_call,  # type: ignore[attr-defined]
+                "format_tool_not_found": parent_agent.format_tool_not_found,
                 "get_api_key": parent_agent.get_api_key,
                 "stream_fn": parent_agent.stream_fn,
+                "stream_options": parent_agent.stream_options,
+                "tool_execution": parent_agent.tool_execution,
             })
 
             active_sessions[session_id] = agent

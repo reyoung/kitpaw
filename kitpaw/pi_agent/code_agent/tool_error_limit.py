@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable
 
 from ..agent.types import AfterToolCallContext, AfterToolCallResult
 from .agent_session import AgentSession
@@ -33,6 +33,10 @@ def configure_tool_error_limit(session: AgentSession, limit: int) -> None:
         cancel_event: asyncio.Event | None,
     ) -> AfterToolCallResult | None:
         nonlocal failure_count
+
+        existing_error = getattr(session, _TOOL_ERROR_LIMIT_EXCEPTION_ATTR, None)
+        if existing_error is not None:
+            raise existing_error
 
         previous_result: AfterToolCallResult | None = None
         if previous_hook is not None:

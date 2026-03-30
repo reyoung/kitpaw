@@ -11,12 +11,14 @@ from pathlib import Path
 
 import pytest
 
-from kitpaw.pi_agent.ai import UserMessage
 from kitpaw.pi_agent.code_agent.sdk import CreateAgentSessionOptions, create_agent_session
+from kitpaw.pi_agent.code_agent.tool_error_limit import (
+    configure_tool_error_limit,
+    consume_tool_error_limit_exception,
+)
 from kitpaw.pi_agent.code_agent.zed.resource_loader import ZedResourceLoader
 from kitpaw.pi_agent.code_agent.zed.system_prompt import build_zed_system_prompt
 from kitpaw.pi_agent.code_agent.zed.tools import create_zed_tools
-
 
 # ---------------------------------------------------------------------------
 # Mock OpenAI helpers (copied from test_mock_e2e for isolation)
@@ -46,6 +48,48 @@ def _run_mock_openai_server(chunks: list[dict]):
             length = int(self.headers.get("Content-Length", "0"))
             raw_body = self.rfile.read(length).decode("utf-8")
             state["request"] = json.loads(raw_body)
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            for chunk in chunks:
+                self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode("utf-8"))
+                self.wfile.flush()
+            self.wfile.write(b"data: [DONE]\n\n")
+            self.wfile.flush()
+
+        def log_message(self, format: str, *args) -> None:  # noqa: A003
+            return None
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}/v1", state
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+@contextmanager
+def _run_mock_openai_server_sequences(responses: list[list[dict]]):
+    state: dict[str, object] = {"requests": []}
+    remaining = [list(chunks) for chunks in responses]
+    lock = threading.Lock()
+
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def do_POST(self) -> None:  # noqa: N802
+            length = int(self.headers.get("Content-Length", "0"))
+            raw_body = self.rfile.read(length).decode("utf-8")
+            request = json.loads(raw_body)
+            with lock:
+                state["requests"].append(request)
+                chunks = remaining.pop(0) if remaining else []
+
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control", "no-cache")
@@ -135,7 +179,7 @@ def test_zed_tools_all_enabled() -> None:
 def test_zed_tool_schemas_have_required_fields() -> None:
     tools = create_zed_tools("/tmp")
     for tool in tools:
-        assert tool.name, f"Tool missing name"
+        assert tool.name, "Tool missing name"
         assert tool.label, f"Tool {tool.name} missing label"
         assert tool.description, f"Tool {tool.name} missing description"
         assert isinstance(tool.parameters, dict), f"Tool {tool.name} parameters not a dict"
@@ -200,7 +244,7 @@ async def test_edit_file_edit_mode(tmp_path: Path) -> None:
     (tmp_path / "test.txt").write_text("hello world\n", encoding="utf-8")
     tools = create_zed_tools(str(tmp_path))
     edit_tool = next(t for t in tools if t.name == "edit_file")
-    result = await edit_tool.execute("call1", {
+    await edit_tool.execute("call1", {
         "display_description": "Replace hello with goodbye",
         "path": "test.txt",
         "mode": "edit",
@@ -373,6 +417,72 @@ async def test_zed_agent_compaction_disabled(tmp_path: Path, monkeypatch: pytest
     configure_zed_compaction(result.session)
     state = result.session.get_compaction_state()
     assert state["enabled"] is False
+
+
+@pytest.mark.anyio
+async def test_zed_spawn_agent_child_tool_errors_count_toward_limit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_MODEL", "gpt-4o-mini")
+
+    parent_chunks = [
+        _make_chunk(
+            delta={
+                "tool_calls": [
+                    {
+                        "id": "call_spawn",
+                        "type": "function",
+                        "function": {
+                            "name": "spawn_agent",
+                            "arguments": '{"label":"worker","message":"trigger child tool error"}',
+                        },
+                    }
+                ]
+            },
+            finish_reason="tool_calls",
+            usage={"prompt_tokens": 4, "completion_tokens": 2},
+        )
+    ]
+    child_chunks = [
+        _make_chunk(
+            delta={
+                "tool_calls": [
+                    {
+                        "id": "call_run",
+                        "type": "function",
+                        "function": {"name": "run", "arguments": "{}"},
+                    }
+                ]
+            },
+            finish_reason="tool_calls",
+            usage={"prompt_tokens": 4, "completion_tokens": 2},
+        )
+    ]
+
+    with _run_mock_openai_server_sequences([parent_chunks, child_chunks]) as (base_url, _state):
+        monkeypatch.setenv("OPENAI_BASE_URL", base_url)
+        loader = ZedResourceLoader(str(tmp_path), str(tmp_path / "agent"), None)
+        tools = create_zed_tools(str(tmp_path))
+        result = await create_agent_session(
+            CreateAgentSessionOptions(
+                cwd=str(tmp_path),
+                resource_loader=loader,
+                tools=tools,
+            )
+        )
+        session = result.session
+        session.agent.set_tools(create_zed_tools(str(tmp_path), parent_agent=session.agent))
+        configure_tool_error_limit(session, 1)
+
+        await session.prompt("spawn a helper")
+
+    limit_error = consume_tool_error_limit_exception(session)
+    assert limit_error is not None
+    assert limit_error.failures == 1
+    assert limit_error.tool_name == "run"
+    assert len(_state["requests"]) == 2
 
 
 # ---------------------------------------------------------------------------
