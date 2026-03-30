@@ -1,13 +1,12 @@
-# OpenClaw Python Orchestration Migration
+# Claw Python Runtime Migration
 
 ## Goal
 
-Add a Python-native OpenClaw orchestration layer on top of
-`kitpaw.pi_agent.code_agent` without pulling in OpenClaw's gateway,
-channel, media, or plugin runtime.
+Turn `kitpaw.claw` into a top-level runtime that embeds the existing
+Python coding engine, instead of treating it as another
+`pi_agent.code_agent` variant.
 
-The first migration target is the local multi-session orchestration
-surface:
+The first runnable `claw` surface is still the local orchestration layer:
 
 - `sessions_list`
 - `sessions_history`
@@ -24,116 +23,120 @@ surface:
 - No plugin tool loading
 - No ACP runtime
 - No OpenClaw-specific exec sandbox/policy pipeline
-- No new CLI mode in this change
+- No `pi --agent claw`
 
 ## Public Interface
 
-Expose a new package:
+Expose a top-level package:
 
 - `kitpaw.claw`
 
 Export:
 
 - `OpenClawToolContext`
+- `ClawResourceLoader`
+- `CreateClawSessionOptions`
+- `CreateClawSessionResult`
 - `create_openclaw_coding_tools`
+- `create_claw_session`
 
-`OpenClawToolContext` carries the runtime facts needed to create child
-sessions and report orchestration events:
+Add runnable entrypoints:
 
-- `cwd`
-- `workspace_dir`
-- `spawn_workspace_dir`
-- `agent_id`
-- `session_id`
-- `controller_session_id`
-- `model_provider`
-- `model_id`
-- `thinking_level`
-- `sandboxed`
-- `system_prompt`
-- `on_yield`
+- `claw`
+- `python -m kitpaw.claw`
 
-The extra `system_prompt` field is required so spawned sessions can
-inherit the parent prompt exactly instead of rebuilding it heuristically.
+`create_claw_session()` is the top-level runtime factory. It owns:
+
+- session creation / resume
+- `ClawResourceLoader`
+- final tool binding for `kitpaw.claw`
+- final system-prompt binding for `kitpaw.claw`
+
+Internally it may still reuse:
+
+- `SessionManager`
+- `create_agent_session()`
+- the existing text/json/rpc mode runners
+
+That reuse is an implementation detail, not the public runtime boundary.
 
 ## Runtime Semantics
 
+### Runtime boundary
+
+`claw` is not a code-agent mode.
+
+- `pi` keeps its current `pi | zed | codex` split.
+- `claw` is a separate runtime with its own entrypoint.
+- the coding engine is embedded under `claw`, analogous to how OpenClaw
+  embeds `pi-coding-agent`.
+
+### Session setup
+
+`create_claw_session()` creates or resolves a session manager first so
+the runtime has a stable session id before the final tool binding.
+
+Session setup happens in two phases:
+
+1. Create a temporary `OpenClawToolContext` and temporary tool set.
+2. Create the session and compute the final `system_prompt`, `model`,
+   and `thinking_level`.
+3. Rebuild the `OpenClawToolContext` and rebind the final tool set.
+
+This final rebind is required so spawned child sessions inherit the real
+parent prompt/model state instead of provisional defaults.
+
+### Prompt / resource loading
+
+`ClawResourceLoader` is responsible for `claw` prompt assembly.
+
+It delegates skills/prompts/themes/extensions/AGENTS discovery to the
+existing default loader, but builds a `claw`-specific prompt that:
+
+- identifies the runtime as `claw`
+- describes the current workspace
+- lists the available tools
+- explains local-only orchestration semantics
+- does not advertise unimplemented OpenClaw features
+
 ### Session visibility
 
-Visibility is local-only and controller-scoped.
+Visibility remains local-only and controller-scoped.
 
-- A controller session can see the child sessions it spawned.
-- A session cannot enumerate or send into unrelated sessions.
-- No agent-to-agent or global label lookup exists in this change.
+- a controller session can see the child sessions it spawned
+- a session cannot enumerate or send into unrelated sessions
+- no agent-to-agent or global label lookup exists in this change
 
 ### Spawn semantics
 
-`sessions_spawn` supports only `runtime="subagent"`.
+`sessions_spawn` still supports only `runtime="subagent"`.
 
-- `mode="run"` creates or reuses a child session for a single task run
-  and returns the result after the run completes.
-- `mode="session"` creates a persistent child session and keeps it in the
-  registry for later `sessions_send` and `subagents` actions.
-- `cleanup="delete"` removes only the in-memory registry handle after the
-  run. Session files are retained.
+- `mode="run"` is one-shot
+- `mode="session"` keeps a persistent child session
+- `cleanup="delete"` removes only the runtime registry handle
 
-Spawned sessions inherit:
+Child sessions inherit:
 
 - model provider/id
 - thinking level
 - system prompt
-- tool set produced by `create_openclaw_coding_tools`
-
-The child session workspace uses `spawn_workspace_dir` when present and
-falls back to `workspace_dir`.
-
-### Subagent control
-
-`subagents` exposes:
-
-- `list`
-- `steer`
-- `kill`
-
-`kill` aborts an active run and removes the child from the active
-registry. It does not delete persisted session files.
-
-### Yield semantics
-
-`sessions_yield` is a structured interrupt point.
-
-- If `on_yield` is not bound, it returns a success payload describing the
-  no-op.
-- If `on_yield` is bound, it calls the callback and aborts the current run
-  by raising `asyncio.CancelledError`.
+- the tool set produced by `create_openclaw_coding_tools`
 
 ## Storage Model
 
 Persisted conversation state continues to use the existing JSONL session
 files managed by `SessionManager`.
 
-Subagent registry state is runtime-only and process-local. It stores:
-
-- controller session id
-- child session id
-- label
-- lifecycle status
-- timestamps
-- last task/result summary
-- active asyncio task handle
-
-The registry is an orchestration index, not a source of truth for message
-history.
+Subagent registry state remains runtime-only and process-local.
 
 ## Testing Strategy
 
-Add unit/integration coverage for:
+Add coverage for:
 
-- tool inventory and schemas
-- session listing/history/status
-- `sessions_spawn` for `run` and `session`
-- `sessions_send` into persistent child sessions
-- `subagents list/steer/kill`
-- `sessions_yield` callback + abort behavior
+- `ClawResourceLoader` prompt generation
+- `create_claw_session()` tool binding and final prompt binding
+- resumed sessions rebinding `claw` tools
+- `python -m kitpaw.claw --no-session`
+- CLI rejection of `--agent`
 
-Use the existing mock OpenAI streaming server for child-session runs.
+Keep the existing orchestration coverage in `tests/claw`.

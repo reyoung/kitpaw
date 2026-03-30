@@ -19,6 +19,7 @@ dependencies = [
 [project.scripts]
 pi = "kitpaw.pi_agent.code_agent.main:main"
 kitpaw = "kitpaw.pi_agent.code_agent.main:main"
+claw = "kitpaw.claw.main:main"
 
 [dependency-groups]
 dev = [

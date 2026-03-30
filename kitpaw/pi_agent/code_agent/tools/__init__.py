@@ -16,7 +16,6 @@ def create_coding_tools(cwd: str, command_prefix: str | None = None):
         create_bash_tool(cwd, command_prefix=command_prefix),
         create_edit_tool(cwd),
         create_write_tool(cwd),
-        create_uv_tool(cwd),
     ]
 
 

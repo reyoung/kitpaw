@@ -18,7 +18,6 @@ def _print_help() -> None:
 
 def _print_help_schema(session: AgentSession) -> None:
     schema = session.get_command_schema()
-    groups_by_id = {g["id"]: g for g in schema["groups"]}
     commands_by_group: dict[str, list[dict[str, object]]] = {}
     for command in schema["commands"]:
         group_id = str(command["group"])
@@ -65,9 +64,13 @@ def _print_tree(nodes: list[dict[str, object]], prefix: str = "") -> None:
         _print_tree(children, prefix + "  ")
 
 
-async def run_interactive_mode(session: AgentSession) -> int:
-    print("pi python port interactive mode")
-    print("Type /help for commands.")
+async def run_interactive_mode(
+    session: AgentSession,
+    *,
+    banner_lines: tuple[str, ...] | None = None,
+) -> int:
+    for line in banner_lines or ("pi python port interactive mode", "Type /help for commands."):
+        print(line)
     loop = asyncio.get_event_loop()
     while True:
         try:

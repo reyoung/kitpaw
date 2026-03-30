@@ -75,7 +75,7 @@ async def test_default_tool_not_found_message_lists_current_tools(tmp_path: Path
 
     assert message == (
         'Error: Tool "run" is not available in this environment. Do not retry it. '
-        "Available tools: read, bash, edit, write, uv."
+        "Available tools: read, bash, edit, write."
     )
 
 
@@ -968,7 +968,7 @@ async def test_compaction_hook_returns_none_falls_back(tmp_path: Path, monkeypat
             return None
 
         result.session.set_compaction_hook(noop_hook)
-        compacted = await result.session.auto_compact(first["id"])
+        await result.session.auto_compact(first["id"])
 
     entry = next(e for e in result.session.session_manager.entries if e["type"] == "compaction")
     assert entry["summary"] == "default summary"

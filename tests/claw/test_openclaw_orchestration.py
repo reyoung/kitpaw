@@ -72,7 +72,6 @@ def test_openclaw_tool_inventory_and_names(tmp_path: Path) -> None:
         "bash",
         "edit",
         "write",
-        "uv",
         "sessions_list",
         "sessions_history",
         "session_status",
